@@ -53,7 +53,22 @@ DEFAULTS = dict(SIG_TOL=11, PIX_THR=24, BLK_MIN=6, MIN_N=4, BLOB_MIN=3,
 
 ROOT  = pathlib.Path(__file__).parent
 NTFY  = os.getenv("NTFY_TOPIC", "")
-HDRS  = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.sanparks.org/"}
+# A truncated "Mozilla/5.0" is a bot tell. This is a full desktop Chrome set.
+# UNMEASURED as a fix: if Cloudflare is blocking the runner's IP range rather
+# than its headers, none of this helps. See the 403 result of 30 Aug 2026.
+HDRS  = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                   "AppleWebKit/537.36 (KHTML, like Gecko) "
+                   "Chrome/128.0.0.0 Safari/537.36"),
+    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    "Accept-Language": "en-GB,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://www.sanparks.org/",
+    "Sec-Fetch-Dest": "image",
+    "Sec-Fetch-Mode": "no-cors",
+    "Sec-Fetch-Site": "same-site",
+    "Connection": "keep-alive",
+}
 NB8   = np.ones((3, 3), dtype=int)
 PLOCK = threading.Lock()
 
