@@ -2,3 +2,4 @@ pillow
 numpy
 scipy
 requests
+curl_cffi

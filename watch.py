@@ -72,6 +72,21 @@ HDRS  = {
 NB8   = np.ones((3, 3), dtype=int)
 PLOCK = threading.Lock()
 
+# Cloudflare fingerprints the TLS/HTTP2 handshake, not just the headers, and
+# python-requests has an unmistakable non-browser signature. curl_cffi replays
+# a real Chrome handshake. If it is not installed we fall back to requests and
+# the run behaves exactly as before.
+#
+# UNMEASURED as a fix. Two 403s so far (GitHub Actions 30 Aug 2026, wsrv.nl
+# same day) are confounded: both came from a datacenter IP AND a non-browser
+# TLS stack. This is the test that separates those two explanations.
+IMPERSONATE = os.getenv("IMPERSONATE", "chrome")
+try:
+    from curl_cffi import requests as _cc
+except ImportError:
+    _cc = None
+
+
 CSV_COLS = ["utc", "last_modified", "preset", "n", "dist", "mode", "bright",
             "px", "blob", "bw", "bh", "fill", "dom", "nblobs", "blocks",
             "vetoed", "hit", "bytes"]
@@ -219,8 +234,13 @@ class Watcher:
 
     # --- io ----------------------------------------------------------------
     def grab(self):
-        r = requests.get(self.cam["url"], headers=HDRS, timeout=25,
-                         params={"t": int(time.time() * 1000)})
+        params = {"t": int(time.time() * 1000)}
+        if _cc is not None:
+            r = _cc.get(self.cam["url"], headers=HDRS, timeout=25,
+                        params=params, impersonate=IMPERSONATE)
+        else:
+            r = requests.get(self.cam["url"], headers=HDRS, timeout=25,
+                             params=params)
         if r.status_code == 403:
             self.forbidden = True
             raise RuntimeError("403 Forbidden")
@@ -361,6 +381,7 @@ class Watcher:
 
 
 def main():
+    log(f"http stack: {'curl_cffi impersonate=' + IMPERSONATE if _cc else 'requests (no TLS impersonation)'}")
     deadline = time.time() + RUNTIME
     ws = [Watcher(c) for c in CAMERAS]
     ts = [threading.Thread(target=w.run, args=(deadline,), daemon=False) for w in ws]
