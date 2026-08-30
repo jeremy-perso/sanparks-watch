@@ -32,6 +32,11 @@ POLL    = int(os.getenv("POLL", 10))              # seconds between polls
 COLLECT = os.getenv("COLLECT", "top").lower()     # all | top | hits
 TOP_N   = int(os.getenv("TOP_N", 3))              # frames kept per run in 'top'
 FORCE   = os.getenv("FORCE_ALL_HOURS", "") == "1" # ignore the active-hours gate
+# Measured 30 Aug 2026: with curl_cffi, Nossob fetched fine while Talamati's
+# very first request was refused. One 403 used to kill a camera for the whole
+# run, so a transient refusal cost the entire session. Only give up after this
+# many CONSECUTIVE 403s; any success resets the count.
+FORBID_MAX = int(os.getenv("FORBID_MAX", 5))
 ARCHIVE_MAX = 900                                 # long edge of archived frames
 
 # --- analysis geometry (shared by every camera)
@@ -90,6 +95,11 @@ except ImportError:
 CSV_COLS = ["utc", "last_modified", "preset", "n", "dist", "mode", "bright",
             "px", "blob", "bw", "bh", "fill", "dom", "nblobs", "blocks",
             "vetoed", "hit", "bytes"]
+
+
+class Forbidden403(Exception):
+    """Cloudflare refused this request. Distinguished from ordinary network
+    errors so a run of them can be counted before giving up on a camera."""
 
 
 def log(msg):
@@ -191,6 +201,7 @@ class Watcher:
         self.rows, self.keep = [], []
         self.nhits = self.nframes = 0
         self.forbidden = False
+        self.f403 = 0
 
     # --- state -------------------------------------------------------------
     def load(self):
@@ -242,8 +253,7 @@ class Watcher:
             r = requests.get(self.cam["url"], headers=HDRS, timeout=25,
                              params=params)
         if r.status_code == 403:
-            self.forbidden = True
-            raise RuntimeError("403 Forbidden")
+            raise Forbidden403("403 Forbidden")
         r.raise_for_status()
         return r.content, r.headers.get("ETag"), r.headers.get("Last-Modified")
 
@@ -282,15 +292,23 @@ class Watcher:
         while time.time() < deadline:
             try:
                 raw, etag, lm = self.grab()
+                self.f403 = 0
                 key = etag or hashlib.md5(raw).hexdigest()
                 if key in seen:
                     time.sleep(POLL); continue
                 seen.add(key); self.etag = key
                 self.handle(raw, lm)
+            except Forbidden403:
+                self.f403 += 1
+                log(f"[{self.name}] 403 Forbidden "
+                    f"({self.f403}/{FORBID_MAX} consecutive)")
+                if self.f403 >= FORBID_MAX:
+                    self.forbidden = True
+                    return
+                time.sleep(min(4 * self.f403, 20))
+                continue
             except Exception as e:
                 log(f"[{self.name}] error: {e}")
-                if self.forbidden:
-                    return
             time.sleep(POLL)
 
         self.save()
@@ -385,7 +403,10 @@ def main():
     deadline = time.time() + RUNTIME
     ws = [Watcher(c) for c in CAMERAS]
     ts = [threading.Thread(target=w.run, args=(deadline,), daemon=False) for w in ws]
-    for th in ts:
+    # Stagger, so the cameras do not arrive at the host as a simultaneous burst.
+    for i, th in enumerate(ts):
+        if i:
+            time.sleep(3)
         th.start()
     for th in ts:
         th.join()
@@ -396,9 +417,11 @@ def main():
 
     blocked = [w.name for w in ws if w.forbidden]
     if blocked:
-        log("\n*** 403 Forbidden from the image host for: " + ", ".join(blocked) +
-            " ***\nCloudflare is refusing this runner's IP. GitHub Actions cannot"
-            " be used\nfor these cameras; fall back to the browser-tab version.\n")
+        log(f"\n*** {FORBID_MAX} consecutive 403s from the image host for: "
+            + ", ".join(blocked) + " ***\n"
+            "Not necessarily an IP block: with curl_cffi the same runner reached\n"
+            "other cameras on 30 Aug 2026. Check the camera's own URL in a browser\n"
+            "before concluding the route is dead.\n")
         sys.exit(1)
 
 
