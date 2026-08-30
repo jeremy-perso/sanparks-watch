@@ -1,0 +1,78 @@
+name: sanparks-watch
+
+on:
+  schedule:
+    # Peak waterhole hours, both parks are UTC+2.
+    # 03:00-07:59 UTC = 05:00-09:59 local, 13:00-18:59 UTC = 15:00-20:59 local.
+    # cameras.py gates each camera again, so widening this alone changes nothing.
+    - cron: "*/5 3-7,13-18 * * *"
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: "Seconds to poll (use 40 for a quick connectivity test)"
+        default: "270"
+      collect:
+        description: "Frames to archive: top | all | hits"
+        default: "top"
+      force_all_hours:
+        description: "Ignore the active-hours gate (1 = yes)"
+        default: "1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sanparks-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install --quiet pillow numpy scipy requests
+
+      # Preset backgrounds are ~330 KB each and change every run. Committing
+      # them would add hundreds of MB a day to the repo, so they live in the
+      # Actions cache instead. A cache miss just costs one warm-up window.
+      - name: Restore preset backgrounds
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: watch-state-${{ github.run_id }}
+          restore-keys: watch-state-
+
+      - name: Watch the waterholes
+        env:
+          NTFY_TOPIC:      ${{ secrets.NTFY_TOPIC }}
+          RUNTIME:         ${{ inputs.runtime || '270' }}
+          COLLECT:         ${{ inputs.collect || 'top' }}
+          FORCE_ALL_HOURS: ${{ inputs.force_all_hours || '' }}
+        run: python watch.py
+
+      - name: Save preset backgrounds
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: watch-state-${{ github.run_id }}
+
+      - name: Commit logs, frames and hits
+        if: always()
+        run: |
+          git config user.name  "sanparks-watch"
+          git config user.email "actions@github.com"
+          git add -A logs frames hits 2>/dev/null || true
+          git diff --cached --quiet && exit 0
+          git commit -m "watch $(date -u +'%F %T')"
+          for i in 1 2 3; do
+            git pull --rebase --autostash && git push && exit 0
+            sleep 5
+          done
