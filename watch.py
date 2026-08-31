@@ -53,7 +53,7 @@ SW, SH  = 16, 9         # preset-fingerprint resolution
 BLK     = 4             # blob grid: BLK x BLK pixel blocks
 BW, BH  = W // BLK, H // BLK
 TS_BOX  = (0.0, 0.925, 0.22, 1.0)   # burnt-in clock, bottom left, masked out
-PRESET_CAP  = 40        # refuse to learn more views than this
+PRESET_CAP  = 120        # refuse to learn more views than this
 PRESET_TTL  = 7 * 86400 # forget a preset unseen for this long
 
 # --- inherited thresholds; cameras.py overrides what differs
