@@ -2,10 +2,19 @@ name: sanparks-watch
 
 on:
   schedule:
-    # Peak waterhole hours, both parks are UTC+2.
-    # 03:00-07:59 UTC = 05:00-09:59 local, 13:00-18:59 UTC = 15:00-20:59 local.
-    # cameras.py gates each camera again, so widening this alone changes nothing.
-    - cron: "*/5 3-7,13-18 * * *"
+    # Round the clock. Widened twice on 31 Aug 2026: first to 03:00-18:59 UTC
+    # (05:00-20:59 local) to cover the middle of the day, then to everything.
+    #
+    # Two reasons. Daylight detection has never been confirmed on a mammal,
+    # only on synthetic targets and on one dove flock, and a daylight animal is
+    # far easier to identify by eye than a grey shape in IR. And Nossob's
+    # nightly generator gap has never been characterised: running through it is
+    # the only way to find out when it falls and whether the camera goes dark
+    # or merely stops updating.
+    #
+    # cameras.py gates each camera again and its `active` is now [(0, 24)];
+    # widening only one of the two does nothing.
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       runtime:
@@ -14,6 +23,9 @@ on:
       collect:
         description: "Frames to archive: top | all | hits"
         default: "top"
+      top_n:
+        description: "Frames kept per run in 'top' mode"
+        default: "1"
       force_all_hours:
         description: "Ignore the active-hours gate (1 = yes)"
         default: "1"
@@ -54,6 +66,7 @@ jobs:
           NTFY_TOPIC:      ${{ secrets.NTFY_TOPIC }}
           RUNTIME:         ${{ inputs.runtime || '270' }}
           COLLECT:         ${{ inputs.collect || 'top' }}
+          TOP_N:           ${{ inputs.top_n || '1' }}
           FORCE_ALL_HOURS: ${{ inputs.force_all_hours || '' }}
         run: python watch.py
 
