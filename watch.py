@@ -30,7 +30,15 @@ from cameras import CAMERAS
 RUNTIME = int(os.getenv("RUNTIME", 270))          # seconds of polling
 POLL    = int(os.getenv("POLL", 10))              # seconds between polls
 COLLECT = os.getenv("COLLECT", "top").lower()     # all | top | hits
-TOP_N   = int(os.getenv("TOP_N", 3))              # frames kept per run in 'top'
+TOP_N   = int(os.getenv("TOP_N", 1))              # frames kept per run in 'top'
+                                                  # 1, not 3: the schedule now
+                                                  # runs round the clock, 288
+                                                  # runs a day, and a daylight
+                                                  # JPEG archives at ~150 KB
+                                                  # against ~55 KB at night
+                                                  # (measured 31 Aug). At 1
+                                                  # that is still ~290 frames
+                                                  # per camera per day.
 FORCE   = os.getenv("FORCE_ALL_HOURS", "") == "1" # ignore the active-hours gate
 # Measured 30 Aug 2026: with curl_cffi, Nossob fetched fine while Talamati's
 # very first request was refused. One 403 used to kill a camera for the whole
@@ -52,15 +60,30 @@ PRESET_TTL  = 7 * 86400 # forget a preset unseen for this long
 DEFAULTS = dict(SIG_TOL=11, PIX_THR=24, BLK_MIN=6, MIN_N=4, BLOB_MIN=3,
                 BLOB_MAX=600, DOM_MIN=0.45, ASP_MAX=2.4, FILL_CMP=0.32,
                 FILL_WIDE=0.62, EMA=0.25,
+                # SIG_TOL decides which preset a frame BELONGS to. DIST_MAX
+                # decides whether the match is close enough to JUDGE on. They
+                # are deliberately different: a loose SIG_TOL keeps backgrounds
+                # converged, a tight DIST_MAX stops us deciding on a frame that
+                # is really a slightly different view. Measured 30-31 Aug 2026
+                # over 906 frames: at Talamati the median changed-pixel count
+                # rises from 183 (dist 0-3) to 26908 (dist 18-25).
+                DIST_MAX=6.0,
+                # Change split across this many separate blobs is diffuse
+                # scenery (dawn light, wind), not an animal. Measured on the
+                # same 906 frames: every confirmed animal scored nblobs <= 17
+                # (the dove flock), while the four confirmed dawn false
+                # positives scored 48, 52, 103 and 141.
+                NB_MAX=25,
                 # per-preset activity veto: blocks that change this often are
                 # scenery that always moves (grass, leaves) and are ignored
                 ACT_MAX=0.60, ACT_MIN_N=12, ACT_EMA=0.06)
 
 ROOT  = pathlib.Path(__file__).parent
 NTFY  = os.getenv("NTFY_TOPIC", "")
-# A truncated "Mozilla/5.0" is a bot tell. This is a full desktop Chrome set.
-# UNMEASURED as a fix: if Cloudflare is blocking the runner's IP range rather
-# than its headers, none of this helps. See the 403 result of 30 Aug 2026.
+# A full desktop Chrome header set. Measured 30 Aug 2026: on its own this does
+# NOT defeat the Cloudflare block. `requests` with these exact headers still
+# returned 403 from both cameras. Kept because it costs nothing and curl_cffi
+# sends them alongside the browser handshake that does the actual work.
 HDRS  = {
     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                    "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -82,9 +105,11 @@ PLOCK = threading.Lock()
 # a real Chrome handshake. If it is not installed we fall back to requests and
 # the run behaves exactly as before.
 #
-# UNMEASURED as a fix. Two 403s so far (GitHub Actions 30 Aug 2026, wsrv.nl
-# same day) are confounded: both came from a datacenter IP AND a non-browser
-# TLS stack. This is the test that separates those two explanations.
+# MEASURED 30 Aug 2026, four clients from the same public repo and runner pool:
+# requests + Mozilla UA -> 403, requests + full Chrome headers -> 403, wsrv.nl
+# image proxy -> 403 upstream, curl_cffi impersonate=chrome -> both cameras
+# fetch. It was the handshake, not the IP. Do not "simplify" this back to
+# plain requests; every frame will 403.
 IMPERSONATE = os.getenv("IMPERSONATE", "chrome")
 try:
     from curl_cffi import requests as _cc
@@ -93,8 +118,8 @@ except ImportError:
 
 
 CSV_COLS = ["utc", "last_modified", "preset", "n", "dist", "mode", "bright",
-            "px", "blob", "bw", "bh", "fill", "dom", "nblobs", "blocks",
-            "vetoed", "hit", "bytes"]
+            "px", "blob", "bw", "bh", "fill", "dom", "dom2", "cx", "cy",
+            "bpk", "bsat", "nblobs", "blocks", "vetoed", "hit", "bytes"]
 
 
 class Forbidden403(Exception):
@@ -159,28 +184,65 @@ def change_blocks(g, bg, t):
     return int(d.sum()), blocks
 
 
-def blob_metrics(npix, blocks):
+def blob_metrics(npix, blocks, g=None, bright=0.0):
     """Largest connected region of change, described so animals separate from
     light: size, solidity, aspect, and how much of the change it accounts for."""
     lab, k = ndimage.label(blocks, structure=NB8)
     if k == 0:
-        return dict(px=npix, blob=0, bw=1, bh=1, fill=0.0, dom=0.0, nb=0, blocks=0)
+        return dict(px=npix, blob=0, bw=1, bh=1, fill=0.0, dom=0.0,
+                    dom2=0.0, cx=0.0, cy=0.0, bpk=0, bsat=0.0, nb=0, blocks=0)
     sizes = ndimage.sum(blocks, lab, range(1, k + 1))
     top = int(np.argmax(sizes)) + 1
     ys, xs = np.nonzero(lab == top)
     bw, bh = int(np.ptp(xs) + 1), int(np.ptp(ys) + 1)   # numpy 2.0: no arr.ptp()
     n = int(sizes[top - 1])
-    return dict(px=npix, blob=n, bw=bw, bh=bh,
+    # INSTRUMENTATION ONLY, nothing decides on these yet.
+    #  cx, cy  where the blob sits, as fractions of the frame. Open question
+    #          from 30 Aug: did the dove blob sit on the birds or on
+    #          unconverged background? A centroid answers that permanently.
+    #  dom2    dominance recomputed ignoring blobs of 1-2 blocks. If insects
+    #          really are what suppresses `dom` on real animals at night, dom2
+    #          will be high where dom is low. Collect a few nights, then
+    #          decide whether to switch the DOM_MIN gate over to it.
+    #  bpk     peak brightness (0-255) of the real frame inside the blob, and
+    #  bsat    the share of the blob's blocks that touch 250 or more. Measured
+    #          31 Aug 2026: every one of Talamati's nine surviving night hits
+    #          was an out-of-focus insect near the lens, and every one of them
+    #          is a saturated white disc. A real animal at range is grey on
+    #          grey. Frame-level saturation does NOT separate them (Talamati's
+    #          foreground grass is blown out in every frame of preset 14), so
+    #          it has to be measured inside the blob. Logged only for now.
+    bpk, bsat = 0, 0.0
+    if g is not None:
+        full = np.repeat(np.repeat(lab == top, BLK, 0), BLK, 1)[:H, :W]
+        vals = (g + bright)[full]
+        if vals.size:
+            bpk = int(min(255, max(0, vals.max())))
+            hot = ((g + bright) >= 250) & full
+            hotblk = (hot.reshape(BH, BLK, BW, BLK).any(axis=(1, 3)) & (lab == top))
+            bsat = round(float(hotblk.sum()) / n, 2)
+    big = sizes[sizes >= 3]
+    return dict(px=npix, blob=n, bw=bw, bh=bh, bpk=bpk, bsat=bsat,
                 fill=round(n / (bw * bh), 2),
                 dom=round(n / float(sizes.sum()), 2),
+                dom2=round(n / float(big.sum()), 2) if big.sum() else 0.0,
+                cx=round(float(xs.mean()) / BW, 3),
+                cy=round(float(ys.mean()) / BH, 3),
                 nb=k, blocks=int(sizes.sum()))
 
 
 def is_hit(m, n_frames, t):
-    """Rejects the two real failure modes: a long flat smear where the light
-    shifts, and change scattered across dozens of small blobs (wind, gain
-    drift). A blob only counts if it is big enough, dominant, and solid."""
+    """Rejects the real failure modes: a frame that is not really this preset,
+    change scattered across dozens of blobs, a long flat smear where the light
+    shifts. A blob only counts if the frame is a good match to its background,
+    the change is concentrated, and the blob is big, dominant and solid.
+
+    m may carry `dist` (distance to the matched preset) and `nb` (how many
+    blobs the change broke into). Both default to a passing value so that
+    older callers and the archived selftest rows behave exactly as before."""
     if n_frames < t["MIN_N"]:                             return False
+    if m.get("dist", 0.0) > t["DIST_MAX"]:                return False
+    if m.get("nb", 1) > t["NB_MAX"]:                      return False
     if not (t["BLOB_MIN"] <= m["blob"] <= t["BLOB_MAX"]): return False
     if m["dom"] < t["DOM_MIN"]:                           return False
     asp = max(m["bw"] / m["bh"], m["bh"] / m["bw"])
@@ -360,7 +422,8 @@ class Watcher:
             vetoed = int((raw_blocks & ~quiet).sum())
             blocks = raw_blocks & quiet
 
-        m   = blob_metrics(npix, blocks)
+        m   = blob_metrics(npix, blocks, g, bright)
+        m["dist"] = bd                 # how well this frame matched its preset
         hit = is_hit(m, best["n"], t)
         log(f"[{self.name}] {lm} p{best['id']} n={best['n']} {mode} px={m['px']} "
             f"blob={m['blob']} {m['bw']}x{m['bh']} fill={m['fill']} dom={m['dom']} "
@@ -370,7 +433,9 @@ class Watcher:
                               preset=best["id"], n=best["n"], dist=round(bd, 1),
                               mode=mode, bright=round(bright, 1), px=m["px"],
                               blob=m["blob"], bw=m["bw"], bh=m["bh"], fill=m["fill"],
-                              dom=m["dom"], nblobs=m["nb"], blocks=m["blocks"],
+                              dom=m["dom"], dom2=m["dom2"], cx=m["cx"], cy=m["cy"],
+                              bpk=m["bpk"], bsat=m["bsat"],
+                              nblobs=m["nb"], blocks=m["blocks"],
                               vetoed=vetoed, hit=int(hit), bytes=len(raw)))
 
         if COLLECT == "all":

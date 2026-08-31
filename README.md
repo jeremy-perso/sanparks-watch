@@ -3,6 +3,8 @@
 Watches the SANParks Nossob and Talamati still cams and keeps only the frames
 where something actually changed at the waterhole. Runs on GitHub's free
 runners, so nothing has to stay open on your computer.
+where something actually changed at the waterhole. Runs on GitHub's free
+runners, so nothing has to stay open on your computer.
 
 ```
 watch.py                     the detector, camera-agnostic
@@ -82,8 +84,9 @@ Run workflow, set *Seconds to poll* to `40`, leave *force_all_hours* at `1`,
 Run. Read the log:
 
 - lines like `[nossob] ... p0 n=1 px=... blob=...` mean it works.
-- `*** 403 Forbidden ***` means Cloudflare blocks GitHub's IPs and this route
-  is dead for that camera. This is still the single biggest untested risk.
+- the first line of the log should read `http stack: curl_cffi
+  impersonate=chrome`. If it says `requests (no TLS impersonation)` the
+  install failed and every frame will 403.
 
 **4. Optional, phone alerts.** Install the free **ntfy** app, subscribe to a
 hard-to-guess topic, then repo Settings > Secrets and variables > Actions >
@@ -95,11 +98,15 @@ produced a real animal in `frames/`.
 
 Cron is UTC, both parks are UTC+2.
 
-    */5 3-7,13-18 * * *     = 05:00-09:59 and 15:00-20:59 local
+    */5 * * * *             = round the clock
 
 `cameras.py` gates each camera again with its own `active` hours, so widening
 the cron alone changes nothing. Widen `active` too, or dispatch manually with
-*force_all_hours* = `1`.
+*force_all_hours* = `1`. Both were widened on 31 Aug 2026 to `[(0, 24)]`.
+Daylight detection has still never been confirmed on a mammal, and a daylight
+animal is far easier to identify by eye than a grey shape in IR, so the
+daylight hours are the point of the change. The small hours come along for free
+and should finally show when Nossob's generator gap falls.
 
 Each run polls for ~4.5 minutes and the 5-minute cron starts the next, so a
 single run has to cover the gap itself. Both cameras are watched inside one
@@ -114,8 +121,12 @@ mean two runners pushing commits to the same repo every five minutes.
     state/<cam>/                     preset backgrounds - NOT committed, see below
 
 The CSV is the important one. It has `blob`, `bw`, `bh`, `fill`, `dom`,
-`nblobs`, `blocks`, `vetoed` and `dist` for every single frame, which is
-everything needed to retune without ever fetching an image back. Retuning from
+`dom2`, `cx`, `cy`, `nblobs`, `blocks`, `vetoed` and `dist` for every single
+frame, which is everything needed to retune without ever fetching an image
+back. `cx`/`cy` are the blob centroid as fractions of the frame, and `dom2` is
+dominance recomputed ignoring blobs of one or two blocks. Neither is used for
+any decision yet; they are there to answer whether insects are what suppresses
+`dom` on real animals. Retuning from
 a day of CSV is cheap; retuning from a day of JPEGs is not.
 
 Archived frame names still sort by interest:
@@ -154,7 +165,10 @@ Everything lives in `cameras.py`, split into `thr` (daylight) and `thr_night`.
 Anything you leave out is inherited from `DEFAULTS` in `watch.py`.
 
 - `BLOB_MIN` - the main daylight lever. Lower to catch smaller animals, at the
-  cost of noise. Nossob day 45, Talamati day 60.
+  cost of noise. Nossob day 45, Talamati day 60, Talamati night 45. Do **not**
+  raise Nossob's night value: real night animals there measured 4 to 51 blocks,
+  including an owl at 5 and a drinking jackal at 6.
+- `DIST_MAX` / `NB_MAX` - the two gates added 31 Aug, see above.
 - `FILL_CMP` / `ASP_MAX` / `FILL_WIDE` - the smear rejector. If a herd lined up
   along the trough gets missed, raise `ASP_MAX` rather than lowering
   `FILL_WIDE`.
@@ -167,17 +181,54 @@ Anything you leave out is inherited from `DEFAULTS` in `watch.py`.
   scenery, at the risk of blanking a spot an animal actually stands in.
 
 After any change: `python selftest.py`. It replays 38 real measured frames
-(empty waterholes and injected targets) through the rule and fails if the
+(empty waterholes and injected targets) plus, since 31 Aug, 18 frames that were
+archived and looked at by eye: 10 confirmed animals that must still be caught
+and 8 confirmed empty frames that must still be rejected. It fails if the
 false-positive count rises or detection drops.
+
+## The two gates added on 31 Aug 2026
+
+Both came out of 906 real logged frames, 30-31 Aug.
+
+**`DIST_MAX`.** `SIG_TOL` decides which preset a frame *belongs to*. `DIST_MAX`
+decides whether the match is close enough to *judge on*. They are deliberately
+different numbers. At Talamati, `SIG_TOL` had to go to 25 to stop the PTZ
+learning the same view three times, but that also lumps framings up to 25 apart
+into one preset, and diffing a frame against a background it does not really
+match produces enormous spurious change: the median changed-pixel count climbs
+from 183 (dist 0-3) to 26908 (dist 18-25). Judging only frames within 6 removed
+30 of Talamati's 53 hits and cost no confirmed Nossob animal.
+
+**`NB_MAX`.** Every confirmed animal so far fragmented the change into at most
+17 blobs (the dove flock; the night animals ran 1 to 12). The four confirmed
+Nossob dawn false positives scored 48, 52, 103 and 141. Diffuse illumination
+change breaks into many pieces, an animal does not.
+
+## Nossob's worst hour is dawn
+
+Between roughly 06:00 and 08:00 local the sun comes up **and** the camera swaps
+its IR-cut filter in, so it goes from greyscale to colour. Every preset
+background is stale at the same moment. Measured 31 Aug on preset 3, one view,
+90 minutes: blob 344, 308, 290, 220, then 66, then 26 as the background caught
+up. Four of those frames scored hits with nothing in them. `NB_MAX` rejects all
+four. Do not try to fix this by raising `BLOB_MIN`.
 
 ## Known gaps
 
-- **No true positive has ever been measured on either camera.** Sensitivity is
-  proven only against synthetic targets injected into real backgrounds.
-- **The Cloudflare 403 question is still open.** Untested from GitHub runners.
-  A `curl` from a cloud sandbox returned 403 in August.
-- **Talamati at night is completely unknown.** It has never been watched after
-  dark and it is not established whether the waterhole is even lit.
+- **Talamati has still never produced a confirmed true positive.** Nossob has
+  ten confirmed animal frames (doves, jackals, an owl).
+- **Daylight is confirmed only on birds.** The 30 Aug dove flock is the only
+  real daylight detection. Gemsbok and elephant sensitivity is still synthetic
+  only, which is why the schedule now covers the whole day.
+- **Insects cannot be told from a distant small animal in the CSV.** At Nossob
+  after dark a floodlit insect and a drinking jackal both land at 3-6 blocks
+  with high fill and high dominance. `dom2`, `cx` and `cy` are now logged to
+  attack this; nothing decides on them yet.
 - **Nossob's nightly generator gap is uncharacterised.**
 - **A jackal in daylight is not detectable** by this pipeline on either camera.
   Night is where the small-animal sensitivity lives.
+- **Repo growth.** Round the clock at 5-minute cron is 288 runs a day. At
+  `TOP_N=1` that is roughly 290 archived frames per camera per day, about
+  60 MB, because a daylight JPEG archives at ~150 KB against ~55 KB at night.
+  Prune `frames/` periodically, or drop `COLLECT` to `hits` once the insect
+  question is settled and the archive is no longer earning its keep.

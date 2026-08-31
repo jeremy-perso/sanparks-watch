@@ -23,8 +23,10 @@ CAMS = {c["name"]: c for c in CAMERAS}
 BIG_N = 99                     # past every MIN_N, so geometry is what is tested
 
 
-def M(blob, bw, bh, fill, dom):
-    return dict(blob=blob, bw=bw, bh=bh, fill=fill, dom=dom)
+def M(blob, bw, bh, fill, dom, dist=0.0, nb=1):
+    """dist and nb default to passing values, so every row measured before
+    31 Aug 2026 is tested against exactly the rule it was measured under."""
+    return dict(blob=blob, bw=bw, bh=bh, fill=fill, dom=dom, dist=dist, nb=nb)
 
 
 # --- empty waterholes: every one of these must be rejected -------------------
@@ -49,6 +51,61 @@ NATURAL = {
         M(58, 26, 5, 0.45, 0.25), M(70, 26, 7, 0.38, 0.50),  M(39, 15, 9, 0.29, 0.17),
         M(249, 40, 12, 0.52, 0.44), M(65, 20, 5, 0.65, 0.48), M(101, 22, 16, 0.29, 0.37),
         M(129, 46, 7, 0.40, 0.83),
+    ],
+}
+
+# --- CONFIRMED, 30-31 Aug 2026: real frames, eyes on the JPEG ----------------
+# Nossob after dark. Every row here was archived, looked at, and either does or
+# does not contain an animal. This is the first non-synthetic sensitivity test
+# the project has had. dist and nb are the real logged values.
+REAL_ANIMAL = {
+    ("nossob", "night"): [
+        ("jackal at the water, side on", M(51, 9, 10, 0.57, 0.98, 5.2, 2)),
+        ("small canid, far bank, broadside", M(20, 11, 4, 0.45, 0.50, 2.0, 8)),
+        ("same canid, drinking", M(6, 3, 3, 0.67, 0.46, 1.4, 4)),
+        ("jackal walking, upper left", M(18, 8, 4, 0.56, 0.64, 0.6, 5)),
+        ("jackal at the right edge", M(28, 11, 7, 0.36, 0.58, 1.8, 10)),
+        ("owl on the bank", M(5, 3, 2, 0.83, 1.00, 0.4, 1)),
+        ("owl on the trough rim", M(14, 4, 5, 0.70, 0.88, 0.5, 2)),
+        ("jackal drinking, insects in frame", M(16, 7, 4, 0.57, 0.36, 1.7, 12)),
+    ],
+    ("nossob", "day"): [
+        ("dove flock, hit 1", M(48, 12, 7, 0.57, 0.22, 1.7, 17)),
+        ("dove flock, hit 2", M(77, 15, 12, 0.43, 0.40, 1.6, 16)),
+    ],
+}
+# how many of the above we currently catch. The drinking jackal at dom 0.36 is
+# the one we knowingly give up: recovering it needs DOM_MIN 0.35, which on this
+# same log let in 13 extra tiny night blobs. Revisit when dom2 has been logged
+# for a few nights. The doves are day-mode, where DOM_MIN is already 0.
+REAL_MIN = {("nossob", "night"): 7, ("nossob", "day"): 2}
+
+# --- CONFIRMED empty: real frames, eyes on the JPEG, nothing in them ---------
+# The four Nossob dawn hits of 31 Aug (sun rising while the IR-cut filter swaps
+# in, so every background is stale at once) and one night insect.
+CONFIRMED_FP = {
+    ("nossob", "day"): [
+        ("dawn 06:21 local", M(207, 52, 5, 0.80, 0.46, 7.8, 9)),
+        ("dawn 06:48 local", M(61, 13, 6, 0.78, 0.26, 4.9, 48)),
+        ("dawn 07:18 local", M(58, 15, 8, 0.48, 0.13, 3.6, 103)),
+        ("dawn 07:38 local", M(308, 61, 7, 0.72, 0.68, 4.7, 52)),
+    ],
+    # Every Talamati night hit that survived the 31 Aug gates was archived and
+    # looked at. All nine were out-of-focus insects near the lens.
+    ("talamati", "night"): [
+        ("insects in the IR floodlight", M(31, 7, 6, 0.74, 0.55, 2.5, 9)),
+        ("insects, second frame", M(17, 6, 5, 0.57, 0.44, 3.1, 11)),
+        ("preset 9 against a smeared background", M(880, 47, 44, 0.43, 0.87, 10.0, 32)),
+        ("overexposed blowout", M(106, 6, 23, 0.77, 0.88, 3.8, 7)),
+        ("insect disc, p7 18:36", M(46, 9, 8, 0.64, 0.40, 3.8, 8)),
+        ("insect disc, p12 18:44", M(57, 8, 10, 0.71, 0.44, 4.3, 21)),
+        ("insect disc, p10 19:02", M(66, 9, 9, 0.81, 0.79, 3.4, 2)),
+        ("insect disc, p14 19:03", M(81, 10, 12, 0.68, 0.60, 4.8, 15)),
+        ("insect disc, p14 19:04", M(74, 9, 11, 0.75, 0.68, 3.3, 8)),
+        ("insect disc, p14 19:13", M(67, 9, 10, 0.74, 0.60, 2.6, 13)),
+        ("insect disc, p14 19:28", M(56, 9, 9, 0.69, 0.72, 3.5, 8)),
+        ("insect disc, p14 19:32", M(50, 8, 8, 0.78, 0.62, 4.5, 13)),
+        ("insect disc, p14 04:59", M(78, 11, 11, 0.64, 0.42, 5.8, 5)),
     ],
 }
 
@@ -110,6 +167,26 @@ def main():
         bad += 0 if ok else 1
         print(f"  {'ok  ' if ok else 'FAIL'} {cam:9s} {mode:5s} {label:18s} "
               f"{got}/{len(rows)} detected (need >= {want})")
+
+    print("\nCONFIRMED animals in real frames (30-31 Aug 2026)")
+    for (cam, mode), rows in REAL_ANIMAL.items():
+        got = sum(is_hit(m, BIG_N, thr_for(cam, mode)) for _, m in rows)
+        want = REAL_MIN[(cam, mode)]
+        ok = got >= want
+        bad += 0 if ok else 1
+        print(f"  {'ok  ' if ok else 'FAIL'} {cam:9s} {mode:5s} "
+              f"{got}/{len(rows)} detected (need >= {want})")
+        for label, m in rows:
+            if not is_hit(m, BIG_N, thr_for(cam, mode)):
+                print(f"         missed: {label}")
+
+    print("\nCONFIRMED empty in real frames: any hit here is a false positive")
+    for (cam, mode), rows in CONFIRMED_FP.items():
+        fp = [l for l, m in rows if is_hit(m, BIG_N, thr_for(cam, mode))]
+        print(f"  {'FAIL' if fp else 'ok  '} {cam:9s} {mode:5s} {len(fp)}/{len(rows)}")
+        for l in fp:
+            print(f"         leaked: {l}")
+        bad += len(fp)
 
     print("\nsanity: night config still rejects the 24 Aug smears, and a "
           "gemsbok-sized\n        night blob still passes")
