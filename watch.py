@@ -74,6 +74,11 @@ DEFAULTS = dict(SIG_TOL=11, PIX_THR=24, BLK_MIN=6, MIN_N=4, BLOB_MIN=3,
                 # (the dove flock), while the four confirmed dawn false
                 # positives scored 48, 52, 103 and 141.
                 NB_MAX=25,
+                # Vertical position ceiling on the blob centroid, as a fraction
+                # of frame height. 1.01 is INERT (cy can never exceed 1.00), so
+                # every camera and mode that does not override this behaves
+                # exactly as before. Nossob thr_night sets it; see cameras.py.
+                CY_MAX=1.01,
                 # per-preset activity veto: blocks that change this often are
                 # scenery that always moves (grass, leaves) and are ignored
                 ACT_MAX=0.60, ACT_MIN_N=12, ACT_EMA=0.06)
@@ -282,12 +287,14 @@ def is_hit(m, n_frames, t):
     shifts. A blob only counts if the frame is a good match to its background,
     the change is concentrated, and the blob is big, dominant and solid.
 
-    m may carry `dist` (distance to the matched preset) and `nb` (how many
-    blobs the change broke into). Both default to a passing value so that
-    older callers and the archived selftest rows behave exactly as before."""
+    m may carry `dist` (distance to the matched preset), `nb` (how many blobs
+    the change broke into) and `cy` (where the blob sits vertically). All
+    default to a passing value so that older callers and the archived selftest
+    rows behave exactly as before."""
     if n_frames < t["MIN_N"]:                             return False
     if m.get("dist", 0.0) > t["DIST_MAX"]:                return False
     if m.get("nb", 1) > t["NB_MAX"]:                      return False
+    if m.get("cy", 0.0) > t["CY_MAX"]:                    return False
     if not (t["BLOB_MIN"] <= m["blob"] <= t["BLOB_MAX"]): return False
     if m["dom"] < t["DOM_MIN"]:                           return False
     asp = max(m["bw"] / m["bh"], m["bh"] / m["bw"])
@@ -305,6 +312,7 @@ class Watcher:
         self.state.mkdir(parents=True, exist_ok=True)
         self.logs.mkdir(parents=True, exist_ok=True)
         self.presets, self.etag = [], None
+        self.next_id = 0        # monotonic, so eviction never reuses an id
         self.rows, self.keep = [], []
         self.nhits = self.nframes = 0
         self.forbidden = False
@@ -317,6 +325,7 @@ class Watcher:
             return
         meta = json.loads(p.read_text())
         self.etag = meta.get("etag")
+        self.next_id = int(meta.get("next_id", 0))
         cutoff = time.time() - PRESET_TTL
         for m in meta["presets"]:
             f = self.state / f"bg{m['id']}.npy"
@@ -328,13 +337,21 @@ class Watcher:
                         else np.zeros((BH, BW), dtype=np.float32))
             m["sig"] = np.array(m["sig"], dtype=np.float32)
             self.presets.append(m)
+        self.next_id = max([self.next_id] + [m["id"] + 1 for m in self.presets])
 
     def save(self):
+        keep = {m["id"] for m in self.presets}
+        for f in self.state.glob("bg*.npy"):
+            if int(f.stem[2:]) not in keep:
+                f.unlink(missing_ok=True)
+        for f in self.state.glob("act*.npy"):
+            if int(f.stem[3:]) not in keep:
+                f.unlink(missing_ok=True)
         for m in self.presets:
             np.save(self.state / f"bg{m['id']}.npy", m["bg"].astype(np.float16))
             np.save(self.state / f"act{m['id']}.npy", m["act"].astype(np.float16))
         (self.state / "presets.json").write_text(json.dumps({
-            "etag": self.etag,
+            "etag": self.etag, "next_id": self.next_id,
             "presets": [{"id": m["id"], "sig": np.round(m["sig"], 2).tolist(),
                          "n": m["n"], "seen": m["seen"]} for m in self.presets]}, indent=1))
 
@@ -438,13 +455,33 @@ class Watcher:
                 best, bd = m, d
 
         if best is None or bd > t["SIG_TOL"]:
+            # AT THE CAP, EVICT, DO NOT DROP THE FRAME.
+            #
+            # This used to `return`, which meant no CSV row, no background
+            # update and no chance of a hit. Measured 30 Aug - 1 Sep 2026:
+            # Nossob reached preset id 60 and Talamati 56 in three days, about
+            # 25 new ids a day each, so a cap of 120 lands within days and from
+            # then on every unmatched frame would vanish silently.
+            #
+            # Evicting the least-recently-seen preset is safe because the
+            # working set is small and stable: 76% of 1 Sep's Nossob frames
+            # landed on presets born on 30 or 31 Aug, and the presets that get
+            # evicted are the ones nothing has matched for the longest. It is
+            # also why PRESET_TTL must NOT be shortened to control growth: the
+            # old presets are the load-bearing ones.
             if len(self.presets) >= PRESET_CAP:
-                log(f"[{self.name}] {lm} preset cap reached, frame skipped "
-                    f"(nearest {bd:.1f}) - consider raising SIG_TOL")
-                return
-            best = {"id": max([p["id"] for p in self.presets], default=-1) + 1,
+                victim = min(self.presets, key=lambda p: p.get("seen", 0))
+                self.presets.remove(victim)
+                for f in (self.state / f"bg{victim['id']}.npy",
+                          self.state / f"act{victim['id']}.npy"):
+                    f.unlink(missing_ok=True)
+                log(f"[{self.name}] {lm} preset cap {PRESET_CAP} reached, "
+                    f"evicted p{victim['id']} (n={victim['n']}, unseen "
+                    f"{(time.time() - victim.get('seen', 0)) / 3600:.1f}h)")
+            best = {"id": self.next_id,
                     "sig": sig, "bg": g.copy(), "n": 1, "seen": time.time(),
                     "act": np.zeros((BH, BW), dtype=np.float32)}
+            self.next_id += 1
             self.presets.append(best)
             log(f"[{self.name}] {lm} new preset p{best['id']} (nearest {bd:.1f})")
             return

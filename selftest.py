@@ -23,10 +23,13 @@ CAMS = {c["name"]: c for c in CAMERAS}
 BIG_N = 99                     # past every MIN_N, so geometry is what is tested
 
 
-def M(blob, bw, bh, fill, dom, dist=0.0, nb=1):
-    """dist and nb default to passing values, so every row measured before
-    31 Aug 2026 is tested against exactly the rule it was measured under."""
-    return dict(blob=blob, bw=bw, bh=bh, fill=fill, dom=dom, dist=dist, nb=nb)
+def M(blob, bw, bh, fill, dom, dist=0.0, nb=1, cy=0.0):
+    """dist, nb and cy all default to passing values, so every row measured
+    before the column existed is tested against exactly the rule it was
+    measured under. cy is the blob centroid as a fraction of frame height,
+    logged from 31 Aug 2026 12:48 UTC; the 24 Aug rows below have none."""
+    return dict(blob=blob, bw=bw, bh=bh, fill=fill, dom=dom, dist=dist, nb=nb,
+                cy=cy)
 
 
 # --- empty waterholes: every one of these must be rejected -------------------
@@ -68,6 +71,17 @@ REAL_ANIMAL = {
         ("owl on the bank", M(5, 3, 2, 0.83, 1.00, 0.4, 1)),
         ("owl on the trough rim", M(14, 4, 5, 0.70, 0.88, 0.5, 2)),
         ("jackal drinking, insects in frame", M(16, 7, 4, 0.57, 0.36, 1.7, 12)),
+        # --- 30 Aug 2026, added 2 Sep after the archived hits of that night
+        # were pulled back and looked at for the first time. These three were
+        # already being caught; they were simply never written down.
+        #
+        # The SPRINGBOK is the first confirmed antelope at Nossob at night and
+        # the first confirmed animal here that is neither a canid nor an owl.
+        # It matters for BLOB_MIN: a whole springbok, side on and head down at
+        # the trough, measures 20 blocks. Anything above about 8 loses it.
+        ("SPRINGBOK at the trough, 30 16:46:10Z", M(20, 8, 4, 0.62, 0.77, 4.2, 4)),
+        ("canid broadside, far bank, 30 18:08:13Z", M(3, 3, 1, 1.00, 1.00, 0.4, 1)),
+        ("owl on the bank, second frame, 30 18:54:05Z", M(5, 3, 2, 0.83, 1.00, 0.3, 1)),
         # --- 31 Aug - 1 Sep 2026. All 77 hits of that night were archived and
         # looked at; these nine contain animals. The lion is the project's
         # first large predator and the first four-frame sequence of one animal
@@ -77,19 +91,30 @@ REAL_ANIMAL = {
         # Note the range: the SAME lion in the SAME minute measures 524 blocks
         # on a close preset and 3 on a wide one. This is why Nossob night
         # BLOB_MIN is 3 and why raising it is not the answer to a noisy log.
-        ("jackal at the trough, side on, 31 17:53:17Z", M(10, 6, 3, 0.56, 0.50, 1.0, 9)),
-        ("canid at the tree base, probable jackal, 31 21:25:52Z", M(10, 5, 4, 0.50, 0.91, 0.3, 2)),
-        ("jackal standing, facing camera, 31 22:54:01Z", M(6, 4, 3, 0.50, 1.00, 0.4, 1)),
-        ("jackal drinking, with reflection, 31 22:55:55Z", M(74, 16, 12, 0.39, 0.52, 2.0, 14)),
-        ("owl on the bank, eyeshine, 31 23:21:08Z", M(4, 2, 3, 0.67, 1.00, 0.5, 1)),
-        ("LION drinking, wide framing, 01 01:56:57Z", M(141, 24, 14, 0.42, 0.98, 1.8, 4)),
-        ("LION drinking, close framing, 01 01:57:09Z", M(524, 48, 29, 0.38, 0.96, 5.4, 8)),
-        ("lion, third preset, 01 01:58:59Z", M(5, 3, 3, 0.56, 0.83, 0.8, 2)),
-        ("lion, leaving, 01 01:59:11Z", M(3, 2, 2, 0.75, 0.75, 0.6, 2)),
+        ("jackal at the trough, side on, 31 17:53:17Z", M(10, 6, 3, 0.56, 0.50, 1.0, 9, 0.333)),
+        ("canid at the tree base, probable jackal, 31 21:25:52Z", M(10, 5, 4, 0.50, 0.91, 0.3, 2, 0.698)),
+        ("jackal standing, facing camera, 31 22:54:01Z", M(6, 4, 3, 0.50, 1.00, 0.4, 1, 0.667)),
+        ("jackal drinking, with reflection, 31 22:55:55Z", M(74, 16, 12, 0.39, 0.52, 2.0, 14, 0.195)),
+        ("owl on the bank, eyeshine, 31 23:21:08Z", M(4, 2, 3, 0.67, 1.00, 0.5, 1, 0.440)),
+        ("LION drinking, wide framing, 01 01:56:57Z", M(141, 24, 14, 0.42, 0.98, 1.8, 4, 0.309)),
+        ("LION drinking, close framing, 01 01:57:09Z", M(524, 48, 29, 0.38, 0.96, 5.4, 8, 0.227)),
+        ("lion, third preset, 01 01:58:59Z", M(5, 3, 3, 0.56, 0.83, 0.8, 2, 0.537)),
+        ("lion, leaving, 01 01:59:11Z", M(3, 2, 2, 0.75, 0.75, 0.6, 2, 0.531)),
     ],
     ("nossob", "day"): [
         ("dove flock, hit 1", M(48, 12, 7, 0.57, 0.22, 1.7, 17)),
         ("dove flock, hit 2", M(77, 15, 12, 0.43, 0.40, 1.6, 16)),
+        # --- 1 Sep 2026, added 2 Sep. Three daylight frames where the logged
+        # blob demonstrably lands ON the animal: the bounding box built from
+        # cx/cy/bw/bh contains it. Frames that merely have an animal somewhere
+        # while the blob is water glare are NOT here; see the notes.
+        #
+        # ALL THREE ARE CURRENTLY MISSED, and that is the point of adding
+        # them. Daylight recall is now visible in this test instead of being
+        # an argument in a markdown file. NB_MAX is what fails all three.
+        ("BLUE WILDEBEEST pair drinking, 01 12:59:04Z", M(462, 58, 19, 0.42, 0.70, 9.8, 70, 0.322)),
+        ("BATELEUR at the pan, 01 13:52:18Z", M(150, 16, 26, 0.36, 0.42, 3.2, 42, 0.381)),
+        ("BATELEUR at the pan, wider preset, 01 13:55:14Z", M(270, 37, 28, 0.26, 0.62, 6.2, 46, 0.445)),
     ],
 }
 # how many of the above we currently catch. The 24 Aug drinking jackal at
@@ -98,7 +123,15 @@ REAL_ANIMAL = {
 # rescue it and cannot; see the comment on dom2 in watch.py. `blob2` is the
 # next attempt and is logged from 1 Sep. The doves are day-mode, where DOM_MIN
 # is already 0.
-REAL_MIN = {("nossob", "night"): 16, ("nossob", "day"): 2}
+#
+# NIGHT 19 of 20 as of 2 Sep 2026, up from 16 of 17: the springbok, the 30 Aug
+# broadside canid and the second owl frame all pass unchanged.
+#
+# DAY IS DELIBERATELY 2 OF 5. The wildebeest pair and both bateleur frames are
+# real confirmed daylight animals that this config does not catch. Raising
+# this number is the goal of the daylight retune; it is a floor on what we
+# have, not a claim about what we want.
+REAL_MIN = {("nossob", "night"): 19, ("nossob", "day"): 2}
 
 # --- CONFIRMED empty: real frames, eyes on the JPEG, nothing in them ---------
 # The four Nossob dawn hits of 31 Aug (sun rising while the IR-cut filter swaps
@@ -151,86 +184,89 @@ CONFIRMED_FP = {
     # the job of the next retune is to bring that number down without moving
     # REAL_MIN.
     ("nossob", "night"): [
-        ("empty 31 16:19:03Z p24", M(188, 29, 9, 0.72, 0.62, 5.1, 8)),
-        ("empty 31 16:19:15Z p24", M(99, 22, 6, 0.75, 0.78, 3.6, 6)),
-        ("empty 31 16:36:07Z p0", M(124, 33, 6, 0.63, 0.76, 5.0, 10)),
-        ("empty 31 16:49:13Z p8", M(29, 12, 6, 0.40, 0.58, 3.2, 13)),
-        ("empty 31 16:58:55Z p15", M(11, 4, 4, 0.69, 0.61, 0.8, 6)),
-        ("empty 31 16:59:08Z p15", M(7, 3, 4, 0.58, 0.47, 0.6, 5)),
-        ("empty 31 17:02:10Z p11", M(3, 3, 1, 1.00, 0.60, 3.3, 3)),
-        ("empty 31 17:12:15Z p13", M(6, 2, 4, 0.75, 0.46, 1.5, 6)),
-        ("empty 31 17:16:03Z p12", M(17, 11, 4, 0.39, 0.55, 1.0, 11)),
-        ("empty 31 17:27:13Z p8", M(4, 2, 3, 0.67, 0.50, 0.8, 5)),
-        ("empty 31 17:28:06Z p12", M(6, 4, 3, 0.50, 0.55, 0.6, 4)),
-        ("empty 31 17:39:18Z p8", M(6, 4, 3, 0.50, 0.86, 0.5, 2)),
-        ("empty 31 17:42:20Z p8", M(4, 3, 2, 0.67, 0.57, 0.4, 3)),
-        ("empty 31 17:53:54Z p8", M(3, 2, 2, 0.75, 0.75, 0.5, 2)),
-        ("empty 31 18:05:10Z p13", M(6, 3, 4, 0.50, 0.67, 0.6, 3)),
-        ("empty 31 18:17:58Z p15", M(6, 4, 3, 0.50, 0.55, 0.5, 5)),
-        ("empty 31 18:48:17Z p14", M(3, 2, 2, 0.75, 1.00, 0.4, 1)),
-        ("empty 31 18:57:57Z p13", M(7, 2, 5, 0.70, 0.58, 0.6, 3)),
-        ("empty 31 18:58:09Z p8", M(4, 3, 2, 0.67, 0.57, 1.0, 3)),
-        ("empty 31 19:01:19Z p8", M(4, 2, 3, 0.67, 0.67, 0.6, 3)),
-        ("empty 31 19:24:13Z p13", M(3, 1, 3, 1.00, 0.50, 0.6, 3)),
-        ("empty 31 19:27:10Z p13", M(3, 2, 3, 0.50, 1.00, 0.5, 1)),
-        ("empty 31 19:36:35Z p8", M(3, 1, 3, 1.00, 0.75, 0.5, 2)),
-        ("empty 31 19:39:00Z p13", M(13, 6, 5, 0.43, 0.62, 0.6, 6)),
-        ("empty 31 19:39:12Z p8", M(3, 2, 3, 0.50, 0.75, 0.4, 2)),
-        ("empty 31 19:40:13Z p15", M(3, 2, 2, 0.75, 0.60, 0.5, 3)),
-        ("empty 31 19:51:55Z p15", M(4, 3, 3, 0.44, 0.80, 0.4, 2)),
-        ("empty 31 20:04:00Z p11", M(5, 3, 3, 0.56, 0.62, 0.3, 3)),
-        ("empty 31 20:05:11Z p13", M(3, 2, 3, 0.50, 0.60, 1.0, 3)),
-        ("empty 31 20:06:57Z p11", M(3, 2, 2, 0.75, 0.60, 0.4, 2)),
-        ("empty 31 20:30:00Z p15", M(3, 2, 2, 0.75, 0.60, 0.3, 3)),
-        ("empty 31 20:32:01Z p8", M(3, 2, 3, 0.50, 0.50, 0.3, 4)),
-        ("empty 31 20:33:15Z p11", M(3, 2, 2, 0.75, 0.75, 0.5, 2)),
-        ("empty 31 20:44:51Z p11", M(6, 2, 4, 0.75, 0.75, 0.5, 3)),
-        ("empty 31 20:45:03Z p11", M(5, 2, 4, 0.62, 1.00, 0.3, 1)),
-        ("empty 31 20:57:07Z p14", M(17, 10, 2, 0.85, 0.50, 1.4, 4)),
-        ("empty 31 20:59:09Z p15", M(4, 4, 2, 0.50, 0.80, 0.5, 2)),
-        ("empty 31 21:09:52Z p8", M(4, 2, 3, 0.67, 0.57, 0.4, 4)),
-        ("empty 31 21:11:15Z p11", M(4, 2, 3, 0.67, 1.00, 0.6, 1)),
-        ("empty 31 21:12:13Z p16", M(64, 18, 6, 0.59, 0.48, 3.8, 21)),
-        ("empty 31 21:21:57Z p12", M(8, 4, 5, 0.40, 0.62, 0.9, 3)),
-        ("empty 31 21:22:56Z p11", M(3, 2, 2, 0.75, 0.60, 0.4, 2)),
-        ("empty 31 21:37:58Z p14", M(130, 52, 4, 0.62, 0.86, 4.0, 10)),
-        ("empty 31 21:49:50Z p14", M(9, 6, 2, 0.75, 0.56, 0.9, 5)),
-        ("empty 31 22:17:03Z p13", M(14, 8, 3, 0.58, 0.64, 2.3, 4)),
-        ("empty 31 22:28:06Z p14", M(20, 13, 2, 0.77, 0.49, 1.2, 3)),
-        ("empty 31 22:28:18Z p14", M(14, 10, 2, 0.70, 0.58, 0.8, 2)),
-        ("empty 31 23:10:52Z p15", M(7, 3, 3, 0.78, 0.58, 2.7, 4)),
-        ("empty 31 23:34:07Z p15", M(5, 3, 2, 0.83, 0.62, 2.4, 4)),
-        ("empty 31 23:36:57Z p12", M(4, 2, 3, 0.67, 1.00, 1.0, 1)),
-        ("empty 31 23:59:07Z p16", M(52, 15, 6, 0.58, 0.71, 2.9, 9)),
-        ("empty 01 01:10:13Z p8", M(6, 6, 2, 0.50, 0.55, 1.1, 6)),
-        ("empty 01 01:12:02Z p14", M(5, 3, 3, 0.56, 0.71, 1.0, 2)),
-        ("empty 01 01:42:11Z p13", M(17, 6, 6, 0.47, 0.59, 1.1, 11)),
-        ("empty 01 01:43:59Z p11", M(3, 3, 3, 0.33, 0.75, 0.6, 2)),
-        ("empty 01 01:44:23Z p14", M(24, 15, 2, 0.80, 0.49, 2.1, 4)),
-        ("empty 01 01:55:32Z p15", M(3, 2, 2, 0.75, 1.00, 0.6, 1)),
-        ("empty 01 02:16:17Z p11", M(3, 3, 3, 0.33, 1.00, 0.4, 1)),
-        ("empty 01 02:16:52Z p14", M(6, 4, 3, 0.50, 1.00, 0.5, 1)),
-        ("empty 01 02:17:15Z p13", M(3, 2, 2, 0.75, 0.60, 1.0, 3)),
-        ("empty 01 02:32:53Z p12", M(10, 5, 5, 0.40, 0.50, 0.6, 6)),
-        ("empty 01 02:34:17Z p14", M(6, 4, 3, 0.50, 0.86, 0.6, 2)),
-        ("empty 01 02:48:56Z p14", M(3, 2, 2, 0.75, 1.00, 0.8, 1)),
-        ("empty 01 03:01:12Z p13", M(5, 3, 4, 0.42, 0.83, 1.2, 2)),
-        ("empty 01 03:24:17Z p14", M(32, 15, 3, 0.71, 0.70, 2.5, 5)),
-        ("empty 01 03:25:18Z p8", M(3, 1, 3, 1.00, 0.60, 0.5, 3)),
-        ("empty 01 03:39:26Z p14", M(23, 12, 3, 0.64, 0.85, 2.1, 2)),
-        ("empty 01 03:42:02Z p14", M(5, 5, 1, 1.00, 0.71, 1.2, 3)),
+        ("empty 31 16:19:03Z p24", M(188, 29, 9, 0.72, 0.62, 5.1, 8, 0.057)),
+        ("empty 31 16:19:15Z p24", M(99, 22, 6, 0.75, 0.78, 3.6, 6, 0.041)),
+        ("empty 31 16:36:07Z p0", M(124, 33, 6, 0.63, 0.76, 5.0, 10, 0.702)),
+        ("empty 31 16:49:13Z p8", M(29, 12, 6, 0.40, 0.58, 3.2, 13, 0.405)),
+        ("empty 31 16:58:55Z p15", M(11, 4, 4, 0.69, 0.61, 0.8, 6, 0.456)),
+        ("empty 31 16:59:08Z p15", M(7, 3, 4, 0.58, 0.47, 0.6, 5, 0.460)),
+        ("empty 31 17:02:10Z p11", M(3, 3, 1, 1.00, 0.60, 3.3, 3, 0.667)),
+        ("empty 31 17:12:15Z p13", M(6, 2, 4, 0.75, 0.46, 1.5, 6, 0.701)),
+        ("empty 31 17:16:03Z p12", M(17, 11, 4, 0.39, 0.55, 1.0, 11, 0.950)),
+        ("empty 31 17:27:13Z p8", M(4, 2, 3, 0.67, 0.50, 0.8, 5, 0.968)),
+        ("empty 31 17:28:06Z p12", M(6, 4, 3, 0.50, 0.55, 0.6, 4, 0.929)),
+        ("empty 31 17:39:18Z p8", M(6, 4, 3, 0.50, 0.86, 0.5, 2, 0.944)),
+        ("empty 31 17:42:20Z p8", M(4, 3, 2, 0.67, 0.57, 0.4, 3, 0.319)),
+        ("empty 31 17:53:54Z p8", M(3, 2, 2, 0.75, 0.75, 0.5, 2, 0.975)),
+        ("empty 31 18:05:10Z p13", M(6, 3, 4, 0.50, 0.67, 0.6, 3, 0.707)),
+        ("empty 31 18:17:58Z p15", M(6, 4, 3, 0.50, 0.55, 0.5, 5, 0.904)),
+        ("empty 31 18:48:17Z p14", M(3, 2, 2, 0.75, 1.00, 0.4, 1, 0.938)),
+        ("empty 31 18:57:57Z p13", M(7, 2, 5, 0.70, 0.58, 0.6, 3, 0.701)),
+        ("empty 31 18:58:09Z p8", M(4, 3, 2, 0.67, 0.57, 1.0, 3, 0.977)),
+        ("empty 31 19:01:19Z p8", M(4, 2, 3, 0.67, 0.67, 0.6, 3, 0.968)),
+        ("empty 31 19:24:13Z p13", M(3, 1, 3, 1.00, 0.50, 0.6, 3, 0.685)),
+        ("empty 31 19:27:10Z p13", M(3, 2, 3, 0.50, 1.00, 0.5, 1, 0.704)),
+        ("empty 31 19:36:35Z p8", M(3, 1, 3, 1.00, 0.75, 0.5, 2, 0.963)),
+        ("empty 31 19:39:00Z p13", M(13, 6, 5, 0.43, 0.62, 0.6, 6, 0.707)),
+        ("empty 31 19:39:12Z p8", M(3, 2, 3, 0.50, 0.75, 0.4, 2, 0.963)),
+        ("empty 31 19:40:13Z p15", M(3, 2, 2, 0.75, 0.60, 0.5, 3, 0.432)),
+        ("empty 31 19:51:55Z p15", M(4, 3, 3, 0.44, 0.80, 0.4, 2, 0.421)),
+        ("empty 31 20:04:00Z p11", M(5, 3, 3, 0.56, 0.62, 0.3, 3, 0.019)),
+        ("empty 31 20:05:11Z p13", M(3, 2, 3, 0.50, 0.60, 1.0, 3, 0.685)),
+        ("empty 31 20:06:57Z p11", M(3, 2, 2, 0.75, 0.60, 0.4, 2, 0.012)),
+        ("empty 31 20:30:00Z p15", M(3, 2, 2, 0.75, 0.60, 0.3, 3, 0.957)),
+        ("empty 31 20:32:01Z p8", M(3, 2, 3, 0.50, 0.50, 0.3, 4, 0.963)),
+        ("empty 31 20:33:15Z p11", M(3, 2, 2, 0.75, 0.75, 0.5, 2, 0.012)),
+        ("empty 31 20:44:51Z p11", M(6, 2, 4, 0.75, 0.75, 0.5, 3, 0.441)),
+        ("empty 31 20:45:03Z p11", M(5, 2, 4, 0.62, 1.00, 0.3, 1, 0.437)),
+        ("empty 31 20:57:07Z p14", M(17, 10, 2, 0.85, 0.50, 1.4, 4, 0.563)),
+        ("empty 31 20:59:09Z p15", M(4, 4, 2, 0.50, 0.80, 0.5, 2, 0.449)),
+        ("empty 31 21:09:52Z p8", M(4, 2, 3, 0.67, 0.57, 0.4, 4, 0.968)),
+        ("empty 31 21:11:15Z p11", M(4, 2, 3, 0.67, 1.00, 0.6, 1, 0.431)),
+        ("empty 31 21:12:13Z p16", M(64, 18, 6, 0.59, 0.48, 3.8, 21, 0.449)),
+        ("empty 31 21:21:57Z p12", M(8, 4, 5, 0.40, 0.62, 0.9, 3, 0.928)),
+        ("empty 31 21:22:56Z p11", M(3, 2, 2, 0.75, 0.60, 0.4, 2, 0.438)),
+        ("empty 31 21:37:58Z p14", M(130, 52, 4, 0.62, 0.86, 4.0, 10, 0.568)),
+        ("empty 31 21:49:50Z p14", M(9, 6, 2, 0.75, 0.56, 0.9, 5, 0.568)),
+        ("empty 31 22:17:03Z p13", M(14, 8, 3, 0.58, 0.64, 2.3, 4, 0.429)),
+        ("empty 31 22:28:06Z p14", M(20, 13, 2, 0.77, 0.49, 1.2, 3, 0.562)),
+        ("empty 31 22:28:18Z p14", M(14, 10, 2, 0.70, 0.58, 0.8, 2, 0.562)),
+        ("empty 31 23:10:52Z p15", M(7, 3, 3, 0.78, 0.58, 2.7, 4, 0.870)),
+        ("empty 31 23:34:07Z p15", M(5, 3, 2, 0.83, 0.62, 2.4, 4, 0.878)),
+        ("empty 31 23:36:57Z p12", M(4, 2, 3, 0.67, 1.00, 1.0, 1, 0.931)),
+        ("empty 31 23:59:07Z p16", M(52, 15, 6, 0.58, 0.71, 2.9, 9, 0.449)),
+        ("empty 01 01:10:13Z p8", M(6, 6, 2, 0.50, 0.55, 1.1, 6, 0.441)),
+        ("empty 01 01:12:02Z p14", M(5, 3, 3, 0.56, 0.71, 1.0, 2, 0.578)),
+        ("empty 01 01:42:11Z p13", M(17, 6, 6, 0.47, 0.59, 1.1, 11, 0.710)),
+        ("empty 01 01:43:59Z p11", M(3, 3, 3, 0.33, 0.75, 0.6, 2, 0.222)),
+        ("empty 01 01:44:23Z p14", M(24, 15, 2, 0.80, 0.49, 2.1, 4, 0.566)),
+        ("empty 01 01:55:32Z p15", M(3, 2, 2, 0.75, 1.00, 0.6, 1, 0.914)),
+        ("empty 01 02:16:17Z p11", M(3, 3, 3, 0.33, 1.00, 0.4, 1, 0.222)),
+        ("empty 01 02:16:52Z p14", M(6, 4, 3, 0.50, 1.00, 0.5, 1, 0.534)),
+        ("empty 01 02:17:15Z p13", M(3, 2, 2, 0.75, 0.60, 1.0, 3, 0.747)),
+        ("empty 01 02:32:53Z p12", M(10, 5, 5, 0.40, 0.50, 0.6, 6, 0.950)),
+        ("empty 01 02:34:17Z p14", M(6, 4, 3, 0.50, 0.86, 0.6, 2, 0.534)),
+        ("empty 01 02:48:56Z p14", M(3, 2, 2, 0.75, 1.00, 0.8, 1, 0.525)),
+        ("empty 01 03:01:12Z p13", M(5, 3, 4, 0.42, 0.83, 1.2, 2, 0.693)),
+        ("empty 01 03:24:17Z p14", M(32, 15, 3, 0.71, 0.70, 2.5, 5, 0.572)),
+        ("empty 01 03:25:18Z p8", M(3, 1, 3, 1.00, 0.60, 0.5, 3, 0.963)),
+        ("empty 01 03:39:26Z p14", M(23, 12, 3, 0.64, 0.85, 2.1, 2, 0.572)),
+        ("empty 01 03:42:02Z p14", M(5, 5, 1, 1.00, 0.71, 1.2, 3, 0.574)),
     ],
 }
 
 # Confirmed-empty frames we currently still leak. A ceiling, not a target: the
-# test fails if the count RISES. Nossob night is 57 of 68 as of 1 Sep 2026,
-# down from 68 before FILL_WIDE went to 1.01.
+# test fails if the count RISES. Nossob night is 36 of 68 as of the evening of
+# 1 Sep 2026: 68 before FILL_WIDE went to 1.01, 57 after it, 36 after CY_MAX
+# 0.85. Both of those changes cost nothing on the 17 confirmed animals, so the
+# detection line above did not move. Night precision on the 31 Aug - 1 Sep log
+# goes 9 of 77 -> 9 of 66 -> 9 of 45, about 20%.
 # Talamati night is 8 of 21: the 13 rows of 30-31 Aug are all rejected, but the
 # eight lens insects of 1 Sep all get through and nothing in cameras.py can
 # stop them. They are big, compact and bright, which is also what a genuine
 # large animal at that waterhole would be. Fixing this needs the corrected
 # `bsat`, not a threshold.
-FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 57, ("talamati", "night"): 8}
+FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 36, ("talamati", "night"): 8}
 
 # --- synthetic animals injected into real frames -----------------------------
 INJECTED = {

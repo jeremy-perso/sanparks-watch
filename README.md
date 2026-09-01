@@ -10,6 +10,7 @@ As of 1 Sep 2026 it has caught a lion.
 watch.py                     the detector, camera-agnostic
 cameras.py                   the camera list and every threshold
 selftest.py                  replays real measured frames through the rule
+animals.md                   every species confirmed by eye, and what it measures
 .github/workflows/watch.yml  scheduled runner
 ```
 
@@ -113,10 +114,15 @@ and should finally show when Nossob's generator gap falls.
 thirds of the scheduled events are simply dropped, and shortening the cron does
 not help because five minutes is GitHub's documented floor anyway.
 
-So `RUNTIME` is the coverage lever, not the cron. At 270 s inside a 882 s cycle
-the detector was awake 31% of the time. It is now 540 s, about 61%, with
-`timeout-minutes` 15 to match. Do not raise the timeout further: `concurrency`
-has `cancel-in-progress: false`, so a hung job holds the queue for its whole
+So `RUNTIME` is the coverage lever, not the cron, but the gain is
+self-limiting. Measured across the 1 Sep deploy: at 270 s the cycle was 1054 s
+and the duty cycle 23.6%; at 540 s the cycle stretched to 1110 s and the duty
+cycle reached **45.3%**, not the 61% projected. A longer job holds the
+`concurrency` group longer, so more scheduled events collapse into one queued
+run. The gain that matters is still large: frames captured per hour went from
+32.4 to 57.3, up 77%. No run came near the 15-minute timeout; the longest span
+was 538 s. Do not raise the timeout further: `concurrency` has
+`cancel-in-progress: false`, so a hung job holds the queue for its whole
 timeout.
 
 Both cameras are watched inside one process on separate threads, which is
@@ -160,6 +166,26 @@ Archived frame names still sort by interest:
 per run plus every hit), `all` (every frame, ~40 MB per camera per night), or
 `hits`.
 
+### Presets grow, and the cap evicts rather than drops
+
+Both cameras add roughly 25 preset ids a day: Nossob reached id 60 and Talamati
+56 by 1 Sep, from 17 and 14 on 30 Aug. The PTZ genuinely walks a continuum of
+framings and each one is re-learned under dawn, midday, dusk and IR light.
+
+This is not degrading detection. `dist` improves day on day and falls
+monotonically with preset maturity, from 37.8% of frames over `DIST_MAX` at
+n<6 to 9.4% at n>80.
+
+What it did threaten was `PRESET_CAP`. That used to log and `return`, so a
+frame at the cap got no CSV row, no background update and no chance of a hit,
+and the log that would have shown it happening never got written. It now
+evicts the least-recently-seen preset instead and names the victim. Preset ids
+are monotonic (`next_id` in `presets.json`) so an evicted id is never reused.
+
+**Do not shorten `PRESET_TTL` to control growth.** 76% of 1 Sep's Nossob
+frames landed on presets born on 30 or 31 Aug. The old presets are the
+load-bearing ones.
+
 ### Why state is not committed
 
 A preset background is 384x216 float16, about 166 KB. With 8-13 presets per
@@ -195,17 +221,34 @@ Anything you leave out is inherited from `DEFAULTS` in `watch.py`.
   along the trough gets missed, raise `ASP_MAX` rather than lowering
   `FILL_WIDE`.
 - `SIG_TOL` - how different two frames must be to count as separate presets.
+  **Nossob's 11 is measured correct at night and there is no correct value in
+  daylight.** Fingerprints recomputed from 653 archived JPEGs, 1 Sep 2026: at
+  night, within-view scatter is p95 8.1 and the nearest two distinct views are
+  12.7 apart, so 11 sits in a real gap. In daylight the same numbers are 13.8
+  and 5.5, so the distributions fully overlap and any value both splits real
+  views and merges different ones. Four alternative fingerprints were tested
+  (std-normalised, gradient, gradient-normalised, rank) and none separates.
   Talamati needs 25: its PTZ does not return to the same framing, and at 11 it
   was learning the same view three times over and starving every background of
   samples. Check `dist` in the CSV, and the preset count in the run summary.
+- `CY_MAX` - the blob centroid must sit above this fraction of frame height.
+  Inert by default (1.01). Nossob night sets 0.85 because the bottom third of
+  those framings is out-of-focus foreground grass while the trough is in the
+  middle band: measured on 68 confirmed-empty night frames, it removes 21 of
+  them and costs none of the 17 confirmed animals. It is a POSITION rule on a
+  PTZ camera. Re-check it if the framing library shifts, and do not copy it
+  into daylight, where the doves feed all round the pan edge.
 - `DOM_MIN` - read the warning above before touching this.
 - `ACT_MAX` / `ACT_MIN_N` - the activity veto. Lower `ACT_MAX` to suppress more
   scenery, at the risk of blanking a spot an animal actually stands in.
 
 After any change: `python selftest.py`. It replays 38 real measured frames
-(empty waterholes and injected targets) plus 112 frames that were archived and
-looked at by eye: 19 confirmed animals that must still be caught and 93
-confirmed empty frames. `REAL_MIN` is a floor on detections and `FP_MAX` is a
+(empty waterholes and injected targets) plus 118 frames that were archived and
+looked at by eye: 25 confirmed animals and 93 confirmed empty frames, of which
+the 77 from 31 Aug - 1 Sep now carry their real logged `cy`. Of the 25 animals,
+19 of 20 at night are caught and only **2 of 5 in daylight** are. The daylight
+number is deliberately in the test so that the gap is visible rather than
+argued about; see `animals.md`. `REAL_MIN` is a floor on detections and `FP_MAX` is a
 ceiling on leaks, so the test fails if detection drops **or** the
 false-positive count rises. Report both numbers whenever you change anything.
 
@@ -274,9 +317,9 @@ block ever approaches 0.60. `bact` says what the grass actually scores, so
   nights have now produced 8 hits, all of them out-of-focus insects on the
   dome, and no threshold in `cameras.py` can tell them from a large animal:
   they are big, bright and compact, which is exactly what an animal would be.
-- **Nossob night runs at about 12% precision.** 9 animals in 77 hits on 31 Aug
-  to 1 Sep, improving to 9 in 66 with the `FILL_WIDE` change. That is why
-  `NTFY_TOPIC` is still deliberately unset.
+- **Nossob night runs at about 20% precision.** 9 animals in 77 hits on 31 Aug
+  to 1 Sep, improving to 9 in 66 with the `FILL_WIDE` change and 9 in 45 with
+  `CY_MAX`. Still not a phone alert, so `NTFY_TOPIC` stays unset.
 - **Insects cannot be told from a distant small animal in the CSV.** At Nossob
   after dark a floodlit insect and a drinking jackal both land at 3-6 blocks
   with high fill and high dominance. The corrected `bsat` and `blob2` are the
@@ -285,8 +328,17 @@ block ever approaches 0.60. `bact` says what the grass actually scores, so
   hole. Measured 31 Aug to 1 Sep: frames delivered in all 67 run windows, and
   no preset's brightness collapses. Every gap over 12 minutes appears at the
   identical timestamp in the Talamati log, so those are GitHub, not the camera.
-- **A jackal in daylight is not detectable** by this pipeline on either camera.
-  Night is where the small-animal sensitivity lives.
+- **A jackal in daylight is not detectable** by this pipeline on either camera,
+  though one was finally CONFIRMED on 1 Sep 2026 standing sharp at the pan edge
+  at 16:04 local. It was never the largest blob, exactly as the 16 synthetic
+  injections predicted. Night is where the small-animal sensitivity lives.
+- **`NB_MAX` 25 blocks confirmed daylight animals.** Measured 2 Sep on 113
+  labelled frames: a dove flock at nblobs 27, a sandgrouse at 28, a distant
+  wildebeest at 36 and a Talamati elephant group at 33 all scored hits under
+  earlier configs and are rejected now. A blue wildebeest pair at nblobs 70 and
+  a bateleur at 42 are missed outright. It was calibrated on four dawn
+  illumination false positives at nblobs 48 to 141 and has never been tested
+  against a full day. This is the first gate to retune.
 - **The day/night boundary is in the wrong place.** `night` is `(18, 6)`, but
   the sunrise runs entirely under day thresholds and dusk is still carrying
   5000 to 7500 changed pixels when the night config takes over. A fully lit

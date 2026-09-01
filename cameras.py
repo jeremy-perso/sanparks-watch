@@ -131,6 +131,37 @@ CAMERAS = [
             "FILL_WIDE": 1.01,
             "NB_MAX":    25,
             "DIST_MAX":  6.0,
+            # NEW 1 Sep 2026 evening. The blob centroid must sit above this
+            # fraction of frame height. Inert everywhere else (DEFAULTS 1.01).
+            #
+            # MECHANISM FIRST, THEN THE NUMBER. All 77 Nossob night hits of
+            # 31 Aug - 1 Sep were cropped to their logged cx/cy/bw/bh and
+            # sorted by cy. From cy 0.68 downwards essentially every crop is
+            # out-of-focus foreground grass: the bottom third of these framings
+            # is near-field grass in front of the pan, and the trough the
+            # animals actually drink at sits in the middle band. The ~35
+            # swaying-grass false positives the notes counted are a POSITION
+            # family, not a size or brightness family.
+            #
+            # Scored on the 9 confirmed animals and 68 confirmed empties of
+            # that night:
+            #    cy < 0.70  keeps 9/9, removes 29/68
+            #    cy < 0.85  keeps 9/9, removes 21/68
+            #    cy < 0.90  keeps 9/9, removes 19/68
+            # 0.75, 0.80 and 0.85 all remove the same 21, so 0.85 is chosen:
+            # it is the widest value that costs nothing measurable.
+            #
+            # 0.70 IS DELIBERATELY NOT TAKEN. The lowest confirmed animal is a
+            # jackal at a tree base on p11 at cy 0.698, so 0.70 would have a
+            # margin of 0.002 on a set of nine. 0.85 leaves 0.15.
+            #
+            # HONEST LIMITS. cx/cy only exist from 31 Aug 12:48 UTC, so this
+            # gate can be scored against 9 confirmed animals, not the full 17,
+            # and it is fitted and tested on the same nine. It is a positional
+            # rule on a PTZ camera: if the framing library shifts, re-check it.
+            # DAYLIGHT MUST NOT COPY THIS until there is a labelled daylight
+            # set; the doves feed all round the pan edge, not just above it.
+            "CY_MAX":    0.85,
         },
     },
     {
