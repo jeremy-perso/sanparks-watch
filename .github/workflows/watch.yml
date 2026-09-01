@@ -37,8 +37,8 @@ on:
         description: "Frames to archive: top | all | hits"
         default: "top"
       top_n:
-        description: "Frames kept per run in 'top' mode"
-        default: "4"
+        description: "Frames kept per run in 'top' mode (4 for a collection day)"
+        default: "1"
       force_all_hours:
         description: "Ignore the active-hours gate (1 = yes)"
         default: "1"
@@ -86,21 +86,14 @@ jobs:
           NTFY_TOPIC:      ${{ secrets.NTFY_TOPIC }}
           RUNTIME:         ${{ inputs.runtime || '540' }}
           COLLECT:         ${{ inputs.collect || 'top' }}
-          # TEMPORARY, 1 Sep 2026: 1 -> 4 for a daylight collection day.
-          #
-          # Daylight has 12 confirmed animals and no labelled empty set, so the
-          # daylight retune has nothing to measure a false-positive rate
-          # against. One archived frame per run is what is starving it.
-          #
-          # Top-by-blob is a good enough selector: on the morning of 1 Sep it
-          # picked out both Nossob dove flocks unaided (blob 764 and blob 2666)
-          # as their run's single biggest change. It just needs more slots.
-          #
-          # Cost: ~4 frames x ~49 runs x 2 cameras x ~150 KB is about 60 MB for
-          # a full daylight day, roughly 30 MB for a half day.
-          #
-          # PUT THIS BACK TO 1 once the collection day has been reviewed.
-          TOP_N:           ${{ inputs.top_n || '4' }}
+          # BACK TO 1 on the evening of 1 Sep 2026. The collection half-day
+          # ran at 4 and produced 76 archived daylight frames per camera
+          # between 09:52 and 15:51 UTC. Those have been reviewed; see the
+          # notes, section on the daylight collection day. Raise it to 4 again
+          # by manual dispatch when another labelling pass is wanted, but do
+          # not leave it there: at 4 it is roughly 60 MB of JPEG per full
+          # daylight day.
+          TOP_N:           ${{ inputs.top_n || '1' }}
           FORCE_ALL_HOURS: ${{ inputs.force_all_hours || '' }}
         run: python watch.py
 
