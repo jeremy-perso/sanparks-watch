@@ -117,9 +117,17 @@ except ImportError:
     _cc = None
 
 
+# SCHEMA HISTORY, because the logs change shape mid-file and any analysis has
+# to split on it:
+#   to 31 Aug 12:48 UTC   18 columns
+#   from 31 Aug 12:48     23 columns, added dom2 cx cy bpk bsat
+#   from  1 Sep bundle    26 columns, added blob2 bact veto30, and bpk/bsat
+#                         now measured at source resolution so their values
+#                         are NOT comparable across the boundary
 CSV_COLS = ["utc", "last_modified", "preset", "n", "dist", "mode", "bright",
-            "px", "blob", "bw", "bh", "fill", "dom", "dom2", "cx", "cy",
-            "bpk", "bsat", "nblobs", "blocks", "vetoed", "hit", "bytes"]
+            "px", "blob", "blob2", "bw", "bh", "fill", "dom", "dom2", "cx", "cy",
+            "bpk", "bsat", "bact", "nblobs", "blocks", "vetoed", "veto30",
+            "hit", "bytes"]
 
 
 class Forbidden403(Exception):
@@ -167,14 +175,42 @@ def thresholds(cam, local_hour):
 
 def analyse(raw):
     """Brightness-normalised full frame plus coarse preset fingerprint.
-    The mean is taken over visible pixels only, so the clock cannot drag it."""
+    The mean is taken over visible pixels only, so the clock cannot drag it.
+
+    Also returns the SOURCE-resolution greyscale array. See block_peaks: the
+    384x216 analysis array is a 5x downsample of a 1920x1080 JPEG and averages
+    away exactly the saturated cores `bsat` exists to find."""
     im = Image.open(io.BytesIO(raw)).convert("L")
+    src = np.asarray(im, dtype=np.uint8)
     g = np.asarray(im.resize((W, H)), dtype=np.float32)
     bright = float(g[MASK].mean())
     g = g - bright
     s = np.asarray(im.resize((SW, SH)), dtype=np.float32)
     s = s - s.mean()
-    return g, s, bright
+    return g, s, bright, src
+
+
+def block_peaks(src):
+    """Peak SOURCE pixel value in each analysis block, as a (BH, BW) array.
+
+    MEASURED 1 Sep 2026, 77 Nossob night hits pulled back and inspected: 31 of
+    them contain source pixels at 250 or above, including the 01:13 owl's
+    eyeshine at 255. Every one of those logged `bsat` 0.00, because bsat was
+    computed on the 384x216 array where a point source averages down to about
+    155. On 493 Nossob night frames the old bsat was non-zero six times, so it
+    could not have separated anything from anything. Measuring before the
+    resize is the whole point of the column.
+
+    Talamati's out-of-focus lens insects are big enough to survive a 5x
+    downsample, which is why bsat looked alive there (158 of 467 night frames)
+    and dead at Nossob. Same column, two different answers, one bug."""
+    if src is None or src.ndim != 2:
+        return None
+    hs, ws = src.shape
+    ry, rx = hs // BH, ws // BW
+    if ry < 1 or rx < 1:
+        return None
+    return src[:BH * ry, :BW * rx].reshape(BH, ry, BW, rx).max(axis=(1, 3))
 
 
 def change_blocks(g, bg, t):
@@ -184,48 +220,57 @@ def change_blocks(g, bg, t):
     return int(d.sum()), blocks
 
 
-def blob_metrics(npix, blocks, g=None, bright=0.0):
+def blob_metrics(npix, blocks, peaks=None, act=None):
     """Largest connected region of change, described so animals separate from
     light: size, solidity, aspect, and how much of the change it accounts for."""
     lab, k = ndimage.label(blocks, structure=NB8)
     if k == 0:
         return dict(px=npix, blob=0, bw=1, bh=1, fill=0.0, dom=0.0,
-                    dom2=0.0, cx=0.0, cy=0.0, bpk=0, bsat=0.0, nb=0, blocks=0)
+                    dom2=0.0, blob2=0, cx=0.0, cy=0.0, bpk=0, bsat=0.0,
+                    bact=0.0, nb=0, blocks=0)
     sizes = ndimage.sum(blocks, lab, range(1, k + 1))
     top = int(np.argmax(sizes)) + 1
-    ys, xs = np.nonzero(lab == top)
+    sel = (lab == top)
+    ys, xs = np.nonzero(sel)
     bw, bh = int(np.ptp(xs) + 1), int(np.ptp(ys) + 1)   # numpy 2.0: no arr.ptp()
     n = int(sizes[top - 1])
     # INSTRUMENTATION ONLY, nothing decides on these yet.
-    #  cx, cy  where the blob sits, as fractions of the frame. Open question
-    #          from 30 Aug: did the dove blob sit on the birds or on
-    #          unconverged background? A centroid answers that permanently.
-    #  dom2    dominance recomputed ignoring blobs of 1-2 blocks. If insects
-    #          really are what suppresses `dom` on real animals at night, dom2
-    #          will be high where dom is low. Collect a few nights, then
-    #          decide whether to switch the DOM_MIN gate over to it.
-    #  bpk     peak brightness (0-255) of the real frame inside the blob, and
-    #  bsat    the share of the blob's blocks that touch 250 or more. Measured
-    #          31 Aug 2026: every one of Talamati's nine surviving night hits
-    #          was an out-of-focus insect near the lens, and every one of them
-    #          is a saturated white disc. A real animal at range is grey on
-    #          grey. Frame-level saturation does NOT separate them (Talamati's
-    #          foreground grass is blown out in every frame of preset 14), so
-    #          it has to be measured inside the blob. Logged only for now.
+    #  cx, cy  where the blob sits, as fractions of the frame. This one has
+    #          already earned its keep: it identified all four dusk false
+    #          positives of 31 Aug by location alone.
+    #  dom2    KNOWN BROKEN, kept only so the column does not disappear
+    #          mid-history. It divides by the sum of blobs of 3 blocks or more,
+    #          but a Nossob floodlit insect IS 3 to 6 blocks, so the divisor
+    #          collapses to the top blob alone and dom2 pins at exactly 1.00.
+    #          Measured 1 Sep 2026 on 225 Nossob night frames with blob >= 3:
+    #          73% of the 3-to-5-block frames score dom2 1.00. Substituting it
+    #          for dom admitted 23 extra insect-sized frames and dropped 23
+    #          animal-sized ones. Use blob2 instead.
+    #  blob2   size of the SECOND largest blob. What dom2 was reaching for,
+    #          without a ceiling and without an arbitrary 3-block floor.
+    #  bpk     peak SOURCE pixel (0-255) inside the blob, and
+    #  bsat    the share of the blob's blocks whose source peak touches 250.
+    #          Both now measured before the 384x216 downsample; see block_peaks
+    #          for why the old version could never fire at Nossob.
+    #  bact    mean activity-veto score of the blob's own blocks. Measured
+    #          1 Sep 2026: ACT_MAX 0.60 vetoed something in 3 of 493 Nossob
+    #          night frames and in 0 of the 77 hits, while ~35 of those hits
+    #          were swaying grass. Median changed blocks per night frame is 4,
+    #          so no block ever approaches 0.60. bact says what the grass
+    #          actually scores, so ACT_MAX can be set from data instead of
+    #          guessed. THIS IS THE HIGHEST-VALUE NEW COLUMN.
     bpk, bsat = 0, 0.0
-    if g is not None:
-        full = np.repeat(np.repeat(lab == top, BLK, 0), BLK, 1)[:H, :W]
-        vals = (g + bright)[full]
-        if vals.size:
-            bpk = int(min(255, max(0, vals.max())))
-            hot = ((g + bright) >= 250) & full
-            hotblk = (hot.reshape(BH, BLK, BW, BLK).any(axis=(1, 3)) & (lab == top))
-            bsat = round(float(hotblk.sum()) / n, 2)
+    if peaks is not None:
+        bpk = int(peaks[sel].max())
+        bsat = round(float(((peaks >= 250) & sel).sum()) / n, 2)
+    bact = round(float(act[sel].mean()), 3) if act is not None else 0.0
     big = sizes[sizes >= 3]
-    return dict(px=npix, blob=n, bw=bw, bh=bh, bpk=bpk, bsat=bsat,
+    srt = np.sort(sizes)[::-1]
+    return dict(px=npix, blob=n, bw=bw, bh=bh, bpk=bpk, bsat=bsat, bact=bact,
                 fill=round(n / (bw * bh), 2),
                 dom=round(n / float(sizes.sum()), 2),
                 dom2=round(n / float(big.sum()), 2) if big.sum() else 0.0,
+                blob2=int(srt[1]) if k > 1 else 0,
                 cx=round(float(xs.mean()) / BW, 3),
                 cy=round(float(ys.mean()) / BH, 3),
                 nb=k, blocks=int(sizes.sum()))
@@ -383,7 +428,7 @@ class Watcher:
         t     = thresholds(self.cam, local)
         mode  = "night" if is_night(local, self.cam.get("night", (18, 6))) else "day"
         stamp = now.strftime("%Y%m%d_%H%M%S")
-        g, sig, bright = analyse(raw)
+        g, sig, bright, src = analyse(raw)
         self.nframes += 1
 
         best, bd = None, 1e9
@@ -421,22 +466,29 @@ class Watcher:
             quiet = best["act"] < t["ACT_MAX"]
             vetoed = int((raw_blocks & ~quiet).sum())
             blocks = raw_blocks & quiet
+        # What a lower ACT_MAX would have removed from this frame. Logged, not
+        # applied. ACT_MAX 0.60 is inert at night (3 frames of 493 on 1 Sep)
+        # and 0.30 is the first candidate worth measuring.
+        veto30 = int((raw_blocks & (best["act"] >= 0.30)).sum())
 
-        m   = blob_metrics(npix, blocks, g, bright)
+        m   = blob_metrics(npix, blocks, block_peaks(src), best["act"])
         m["dist"] = bd                 # how well this frame matched its preset
         hit = is_hit(m, best["n"], t)
         log(f"[{self.name}] {lm} p{best['id']} n={best['n']} {mode} px={m['px']} "
             f"blob={m['blob']} {m['bw']}x{m['bh']} fill={m['fill']} dom={m['dom']} "
-            f"nb={m['nb']} veto={vetoed} {'<== HIT' if hit else ''}")
+            f"nb={m['nb']} bact={m['bact']} veto={vetoed}/{veto30} "
+            f"{'<== HIT' if hit else ''}")
 
         self.rows.append(dict(utc=now.strftime("%Y-%m-%d %H:%M:%S"), last_modified=lm,
                               preset=best["id"], n=best["n"], dist=round(bd, 1),
                               mode=mode, bright=round(bright, 1), px=m["px"],
-                              blob=m["blob"], bw=m["bw"], bh=m["bh"], fill=m["fill"],
+                              blob=m["blob"], blob2=m["blob2"],
+                              bw=m["bw"], bh=m["bh"], fill=m["fill"],
                               dom=m["dom"], dom2=m["dom2"], cx=m["cx"], cy=m["cy"],
-                              bpk=m["bpk"], bsat=m["bsat"],
+                              bpk=m["bpk"], bsat=m["bsat"], bact=m["bact"],
                               nblobs=m["nb"], blocks=m["blocks"],
-                              vetoed=vetoed, hit=int(hit), bytes=len(raw)))
+                              vetoed=vetoed, veto30=veto30,
+                              hit=int(hit), bytes=len(raw)))
 
         if COLLECT == "all":
             self.archive(raw, stamp, best["id"], m)

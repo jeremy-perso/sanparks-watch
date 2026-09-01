@@ -22,7 +22,14 @@ not a gemsbok, not an elephant. Daylight configs below therefore set DOM_MIN
 to 0 and lean on blob size, solidity and the smear rejector instead.
 
 Threshold provenance:
-  nossob   night - 101 real night frames, 24 Aug 2026. 0 false positives.
+  nossob   night - 101 real night frames, 24 Aug 2026, plus 493 real night
+                   frames 31 Aug - 1 Sep 2026 with every one of the 77 hits
+                   pulled back and looked at. 9 contained animals (a lion, 4
+                   jackal frames, an owl) and 68 did not. The night config is
+                   therefore now calibrated against real animals AND real
+                   empties, which is new. Its honest precision on that night
+                   is 9 of 77 hits, improving to 9 of 66 with the FILL_WIDE
+                   change below, which costs no animal.
   nossob   day   - 18 real daylight frames, 30 Aug 2026. 0 false positives,
                    8/8 injected gemsbok, 0/8 jackal (the daylight limit).
   talamati day   - 13 real daylight frames, same window. 0 false positives,
@@ -84,7 +91,8 @@ CAMERAS = [
             "DIST_MAX":  6.0,
         },
 
-        # The 24 Aug night calibration, untouched.
+        # The 24 Aug night calibration, with one change on 1 Sep 2026: see
+        # FILL_WIDE below.
         "thr_night": {
             "SIG_TOL":   11,
             "PIX_THR":   24,
@@ -100,7 +108,27 @@ CAMERAS = [
             # so 3.0 sits below all of them and selftest still leaks nothing.
             "ASP_MAX":   3.0,
             "FILL_CMP":  0.32,
-            "FILL_WIDE": 0.62,
+            # 0.62 -> 1.01 on 1 Sep 2026. `fill` can never exceed 1.00, so this
+            # makes the smear rejector's wide branch unreachable and turns
+            # ASP_MAX 3.0 into a HARD aspect ceiling at night.
+            #
+            # Measured: all 17 confirmed Nossob night animals (the 8 in this
+            # file's history plus the 9 of 31 Aug - 1 Sep, which include a
+            # lion) have aspect 1.00 to 2.75. The worst case, 2.75, is the
+            # broadside jackal ASP_MAX was raised to 3.0 for in the first
+            # place, so the margin is unchanged. Meanwhile 11 of the 68
+            # confirmed-empty night hits of that same night were long thin
+            # smears at aspect 3.1 to 13.0 sneaking through on fill: the
+            # floodlit trough rim on preset 14 (13x2, 15x2, 52x4) and the
+            # water-line bar on preset 12.
+            #
+            # 11 false positives removed, 0 of 17 confirmed animals lost. This
+            # is the only zero-cost gate in the whole night log.
+            #
+            # DAYLIGHT MUST NOT COPY THIS. The 31 Aug dove flocks measured
+            # aspect 2.9 to 5.7 and the Talamati zebra group 2.88; they need
+            # the wide branch. This is a night-only change.
+            "FILL_WIDE": 1.01,
             "NB_MAX":    25,
             "DIST_MAX":  6.0,
         },
@@ -169,12 +197,19 @@ CAMERAS = [
             # insect near the lens, largest blob 81 blocks. 90 clears them.
             #
             # This is a stopgap and it is a guess, calibrated only against
-            # noise, because Talamati has still never produced a confirmed
-            # animal. It makes the night alarm big-animal-only. The CSV and
-            # COLLECT=top keep running regardless, and the frames worth
-            # looking at here have always come from COLLECT=top rather than
-            # from hits. Replace it with a gate on `bsat` as soon as there is
-            # a night of that column to look at.
+            # noise. Talamati has produced confirmed DAYLIGHT animals (zebra,
+            # wildebeest, an elephant herd, 31 Aug) but still no confirmed
+            # NIGHT animal. It makes the night alarm big-animal-only. The CSV
+            # and COLLECT=top keep running regardless.
+            #
+            # Re-checked 1 Sep 2026 against a second full night: 8 hits in 467
+            # frames, all 8 archived and looked at, all 8 out-of-focus insects
+            # and moths on or near the dome (blob 120 to 272, fill 0.44-0.75,
+            # all compact, so neither the aspect ceiling nor bpk separates
+            # them). No threshold in this file can tell them from an animal.
+            # bsat should, and was rewritten on 1 Sep to measure at source
+            # resolution; wait for a night of the corrected column before
+            # touching anything here.
             "BLOB_MIN":  90,
             "DOM_MIN":   0.40,
             "FILL_CMP":  0.36,
