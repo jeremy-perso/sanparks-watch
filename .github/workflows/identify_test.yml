@@ -1,0 +1,138 @@
+name: identify-test
+
+# One-off evaluation of the SpeciesNet ensemble (MegaDetector + species classifier)
+# against the archived JPEGs already in this repo.
+#
+# THIS WORKFLOW IS READ-ONLY. It does not commit, does not push, does not touch
+# watch.py, cameras.py, selftest.py or watch.yml, and cannot affect detection.
+# Its only output is an artifact you download.
+#
+# Manual dispatch only. No schedule.
+
+on:
+  workflow_dispatch:
+    inputs:
+      cameras:
+        description: 'Comma-separated camera dirs to scan'
+        required: false
+        default: 'nossob,talamati,satara'
+      roots:
+        description: 'Comma-separated archive roots to scan'
+        required: false
+        default: 'hits,frames'
+      dates:
+        description: 'Comma-separated YYYYMMDD to include, or blank for all'
+        required: false
+        default: ''
+      limit:
+        description: 'Max images this run (0 = all)'
+        required: false
+        default: '0'
+      offset:
+        description: 'Skip this many images first (for sharding)'
+        required: false
+        default: '0'
+      country:
+        description: 'ISO 3166-1 alpha-3 code for geofencing'
+        required: false
+        default: 'ZAF'
+      batch_size:
+        description: 'Classifier batch size'
+        required: false
+        default: '8'
+
+# Own group. Cannot cancel or queue behind the watcher.
+concurrency:
+  group: identify-test
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  identify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache model weights
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/kagglehub
+            ~/.cache/huggingface
+          key: speciesnet-weights-v1
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: identify-pip-${{ runner.os }}-v1
+
+      - name: Install CPU torch and SpeciesNet
+        run: |
+          set -x
+          python -m pip install --upgrade pip
+          # CPU-only wheels. The default wheels pull ~2.5 GB of CUDA we cannot use.
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r tools/requirements-identify.txt
+          python -c "import torch; print('torch', torch.__version__)"
+
+      - name: Build the file list
+        id: list
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          python tools/identify_test.py list \
+            --cameras "${{ inputs.cameras }}" \
+            --roots "${{ inputs.roots }}" \
+            --dates "${{ inputs.dates }}" \
+            --limit "${{ inputs.limit }}" \
+            --offset "${{ inputs.offset }}" \
+            --out filepaths.txt
+          echo "count=$(wc -l < filepaths.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Run SpeciesNet
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          START=$(date +%s)
+          python -m speciesnet.scripts.run_model \
+            --filepaths_txt filepaths.txt \
+            --predictions_json predictions.json \
+            --country "${{ inputs.country }}" \
+            --batch_size "${{ inputs.batch_size }}" \
+            --bypass_prompts \
+            --noprogress_bars
+          END=$(date +%s)
+          echo "WALL_SECONDS=$((END-START))" >> "$GITHUB_ENV"
+          echo "Wall clock: $((END-START))s for ${{ steps.list.outputs.count }} images"
+
+      - name: Join to filenames and summarise
+        run: |
+          python tools/identify_test.py summarise \
+            --predictions predictions.json \
+            --out identify_test.csv \
+            --wall-seconds "${WALL_SECONDS:-0}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: identify-test-results
+          path: |
+            identify_test.csv
+            predictions.json
+            filepaths.txt
+          retention-days: 30
+          if-no-files-found: warn
