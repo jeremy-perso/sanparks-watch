@@ -1,7 +1,7 @@
 # sanparks-watch
 
-Watches the SANParks Nossob and Talamati still cams and keeps only the frames
-where something actually changed at the waterhole. Runs on GitHub's free
+Watches the SANParks Nossob, Talamati and Satara still cams and keeps only the
+frames where something actually changed at the waterhole. Runs on GitHub's free
 runners, so nothing has to stay open on your computer.
 
 As of 1 Sep 2026 it has caught a lion.
@@ -47,9 +47,13 @@ at all, not even an elephant. The daylight configs therefore set `DOM_MIN` to
 If you ever "fix" daylight by raising `DOM_MIN`, you will get a beautifully
 quiet log that can never detect anything. Run `selftest.py`.
 
-## How the two cameras differ
+## How the cameras differ
 
-Both were watched simultaneously for 30 minutes on 30 Aug 2026, 13:39-14:07 UTC.
+Nossob and Talamati were watched simultaneously for 30 minutes on 30 Aug 2026,
+13:39-14:07 UTC. **Satara has no row here because it has none of these numbers
+yet.** It was added on 2 Sep 2026 with Talamati's thresholds copied verbatim as
+a prior, and not one Satara frame has been fetched or looked at. Fill this table
+in before quoting anything about it.
 
 | | Nossob | Talamati |
 |---|---|---|
@@ -125,13 +129,20 @@ was 538 s. Do not raise the timeout further: `concurrency` has
 `cancel-in-progress: false`, so a hung job holds the queue for its whole
 timeout.
 
-Both cameras are watched inside one process on separate threads, which is
-deliberate: a matrix job per camera would mean two runners pushing commits to
-the same repo.
+Every camera is watched inside one process on separate threads, which is
+deliberate: a matrix job per camera would mean several runners pushing commits
+to the same repo. Threads share one deadline, so adding a camera costs no wall
+clock; the starts are staggered a few seconds so the image host does not see a
+simultaneous burst.
+
+**A camera that is blocked no longer loses its run.** Five consecutive 403s
+still give up on that camera and still fail the job, but as of 2 Sep 2026 the
+rows, frames and preset backgrounds collected before the block are saved
+instead of discarded.
 
 ## What each run leaves behind
 
-    logs/<cam>/YYYYMMDD.csv          every frame, every metric, ~200 bytes/frame
+    logs/<cam>/YYYYMMDD_<cam>.csv    every frame, every metric, ~200 bytes/frame
     frames/<cam>/YYYYMMDD/           the few most-changed frames per run
     hits/<cam>/YYYYMMDD/             full-resolution frames that passed the rule
     state/<cam>/                     preset backgrounds - NOT committed, see below
@@ -239,18 +250,43 @@ Anything you leave out is inherited from `DEFAULTS` in `watch.py`.
   PTZ camera. Re-check it if the framing library shifts, and do not copy it
   into daylight, where the doves feed all round the pan edge.
 - `DOM_MIN` - read the warning above before touching this.
-- `ACT_MAX` / `ACT_MIN_N` - the activity veto. Lower `ACT_MAX` to suppress more
-  scenery, at the risk of blanking a spot an animal actually stands in.
+- `ACT_MAX` / `ACT_MIN_N` - the activity veto, and **not a hit gate**. It picks
+  which blocks may form a blob at all, so changing it re-cuts every blob and
+  moves `blob`, `fill`, `dom`, `nblobs` and `cy` on every frame. Lower it to
+  suppress more scenery, at the risk of blanking a spot an animal stands in.
+  If what you want is a ceiling on the logged `bact` column, that is `BACT_MAX`.
+- `BACT_MAX` - ceiling on `bact`, the mean activity score of the blob's own
+  blocks. Inert by default (1.01). Nossob night sets 0.21, added 2 Sep 2026.
+  A blob sitting where the view always moves is scenery; an animal stands
+  somewhere normally still. Measured on the 94 Nossob night hits of 1/2 Sep:
+  29 documented animals have `bact` median 0.091 and max 0.209, and 17 of the
+  other 65 hits score above 0.21. **Night only**, exactly like `DOM_MIN`: the
+  one confirmed daylight animal carrying the column, the dawn bird flock of
+  2 Sep, scores 0.314. Not set at Talamati, which has no confirmed night animal
+  to protect. It is a same-set fit and needs a second night to be believed.
+- `SAT_MAX` - ceiling on `bsat`, the share of the blob's blocks whose source
+  peak touches 250. Inert by default (1.01) and **currently set nowhere**.
+  Measured 2 Sep: 0.25 at Nossob night removes nine more hits, eight of them
+  floodlit insects on preset 14, at no cost to the 29 animals. Held back so the
+  next night tests `BACT_MAX` alone. The floor is hard: two barn owls on the
+  concrete block score `bsat` 0.24, so anything below 0.25 takes an owl.
 
 After any change: `python selftest.py`. It replays 38 real measured frames
-(empty waterholes and injected targets) plus 118 frames that were archived and
-looked at by eye: 25 confirmed animals and 93 confirmed empty frames, of which
-the 77 from 31 Aug - 1 Sep now carry their real logged `cy`. Of the 25 animals,
-19 of 20 at night are caught and only **2 of 5 in daylight** are. The daylight
+(empty waterholes and injected targets) plus 161 frames that were archived and
+looked at by eye: 55 confirmed animals and 106 confirmed empty frames. Rows from
+the night of 1/2 Sep carry real `bact` and `bsat`; everything older defaults to
+0.0 and therefore does not vote on `BACT_MAX` or `SAT_MAX`. Of the 55 animals,
+48 of 50 at night are caught and only **2 of 5 in daylight** are. The daylight
 number is deliberately in the test so that the gap is visible rather than
 argued about; see `animals.md`. `REAL_MIN` is a floor on detections and `FP_MAX` is a
 ceiling on leaks, so the test fails if detection drops **or** the
 false-positive count rises. Report both numbers whenever you change anything.
+
+Two cautions on those denominators. Nineteen of the fifty night animal rows are
+the same lion on one night, so the night figure is not fifty independent tests.
+And only 13 of the 58 confirmed empties of 1/2 Sep are named individually
+anywhere, so 45 real false positives are missing from the file; measured on the
+full archive instead, `BACT_MAX` 0.21 removes 17 of 58 rather than 6 of 13.
 
 ## The two gates added on 31 Aug 2026
 
@@ -312,11 +348,23 @@ block ever approaches 0.60. `bact` says what the grass actually scores, so
 
 ## Known gaps
 
-- **Talamati has still never produced a confirmed NIGHT animal.** Its daylight
-  true positives arrived 31 Aug (zebra, wildebeest, an elephant herd). Two full
-  nights have now produced 8 hits, all of them out-of-focus insects on the
-  dome, and no threshold in `cameras.py` can tell them from a large animal:
-  they are big, bright and compact, which is exactly what an animal would be.
+- **Satara is completely uncalibrated.** Added 2 Sep 2026 running Talamati's
+  thresholds, which are a Kruger prior and not a Satara measurement. It is
+  deliberately deaf (`BLOB_MIN` 90 at night) so the log stays quiet while
+  `COLLECT=top` gathers frames. Nothing about it may be quoted as measured.
+- **Talamati's first confirmed NIGHT animal turned up on 2 Sep 2026, in the
+  30 Aug archive.** An elephant on preset 9 at burnt-in 20:23:46 and 20:24:00,
+  moving between the two frames; the second is in `hits/`, so it scored. This
+  corrects the earlier claim, repeated in `cameras.py`, that none of the 46
+  Talamati night hits of 30-31 Aug contained an animal. **It is not yet a
+  `selftest.py` row**, because the logged blob is two to three times the size
+  of the animal in each direction and the 18-column schema of 30 Aug has no
+  `cx`/`cy` to locate the box with. `logs/talamati/20260830.csv` would settle
+  it from `bw` x `bh` alone.
+- **Talamati night is still uncalibrated on animals.** The 8 hits of the second
+  full night were all out-of-focus insects on the dome, and no threshold in
+  `cameras.py` can tell those from a large animal: they are big, bright and
+  compact, which is exactly what an animal would be.
 - **Nossob night runs at about 20% precision.** 9 animals in 77 hits on 31 Aug
   to 1 Sep, improving to 9 in 66 with the `FILL_WIDE` change and 9 in 45 with
   `CY_MAX`. Still not a phone alert, so `NTFY_TOPIC` stays unset.

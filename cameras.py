@@ -162,6 +162,70 @@ CAMERAS = [
             # DAYLIGHT MUST NOT COPY THIS until there is a labelled daylight
             # set; the doves feed all round the pan edge, not just above it.
             "CY_MAX":    0.85,
+
+            # NEW 2 Sep 2026 evening. Ceiling on the LOGGED `bact` column: the
+            # mean activity-EMA of the blob's own blocks. Inert everywhere else
+            # (DEFAULTS 1.01).
+            #
+            # NAMING, BECAUSE THE NOTES GET THIS WRONG. The 2 Sep notes call
+            # this "ACT_MAX 0.21". ACT_MAX is already taken: it is the per-block
+            # veto in watch.py, currently 0.60, and it decides which blocks may
+            # form a blob at all. Setting THAT to 0.21 would re-cut every blob
+            # and change blob, fill, dom, nblobs and cy on every frame. This is
+            # a separate key.
+            #
+            # MECHANISM FIRST. On preset 13 a lion drank at 02 01:40:00 UTC:
+            # blob 156, 23x11, cx 0.091, cy 0.323, bact 0.064. Seventy minutes
+            # later four hits fire on an almost identical box in an empty
+            # frame: 02:53:16 blob 130 (21x11, cx 0.091, cy 0.316), 02:56:17
+            # blob 106, 02:58:56 blob 72, 02:59:08 blob 25, at bact 0.252,
+            # 0.305, 0.350 and 0.392. Same preset, same place, same shape,
+            # nothing in frame. Geometry cannot separate those; bact does, by a
+            # factor of four.
+            #
+            # MEASURED 2 Sep 2026 on the 94 Nossob night hits of 1/2 Sep, the
+            # only night carrying the column. 29 of those hits are animals
+            # documented in animals.md with a box that lands on the animal:
+            #   bact median 0.091, max 0.209 (a lion, 02 01:43:08).
+            # Of the other 65 hits, 17 score above 0.21.
+            #   BACT_MAX 0.21 -> 29/29 animals kept, 17 hits removed
+            #   BACT_MAX 0.23 -> 29/29 kept, 15 removed
+            #   BACT_MAX 0.25 -> 29/29 kept, 12 removed
+            # The hare of 01 19:35:08, the one confirmed miss of the night,
+            # scores bact 0.062 and is not touched by this gate either way.
+            #
+            # THREE HONEST LIMITS.
+            #  1. SAME-SET FIT. 0.21 is one tick above the maximum of the 29
+            #     animals it is scored on. There is no out-of-sample test. A
+            #     second night of 26-column data is the thing that settles it.
+            #  2. NO HISTORIC ANIMAL CARRIES bact. Every confirmed animal
+            #     before 1 Sep is on an 18- or 23-column row, so this cannot be
+            #     scored against the springbok, the 30 Aug owls or the 30 Aug
+            #     jackals. In selftest they default to bact 0.0 and pass, which
+            #     is a convention, not evidence.
+            #  3. NIGHT ONLY, LIKE DOM_MIN. The one confirmed daylight animal
+            #     carrying the column (dawn bird flock, 02 04:59:11 UTC, p3,
+            #     blob 311) has bact 0.314. A global 0.21 would kill the only
+            #     daylight animal this detector has caught since 30 Aug.
+            #
+            # NOT AT TALAMATI. Talamati has zero confirmed night animals across
+            # four nights, so a gate fitted purely on its negative set has
+            # nothing to protect. Three of its ten night empties score bact
+            # 0.063 to 0.081, squarely inside the Nossob animal band.
+            "BACT_MAX":  0.21,
+
+            # SAT_MAX IS DELIBERATELY NOT SET HERE. Measured 2 Sep 2026 on the
+            # same 94 hits: SAT_MAX 0.25 keeps 29/29 animals and removes 9 more
+            # hits, 8 of them floodlit insects on preset 14 at bpk 255 and bsat
+            # 0.50 to 1.00. Combined with BACT_MAX 0.21 it removes 24 of the 65
+            # rather than 17.
+            #
+            # It is held back on purpose so the next night is a clean
+            # out-of-sample test of BACT_MAX alone. The floor is hard, not
+            # chosen: the highest bsat on any confirmed animal in the whole
+            # archive is 0.24, two barn owls side by side on the concrete block
+            # at 01 23:46:58 with four eyeshine points in a 3x7 box. Any
+            # SAT_MAX below 0.25 takes an owl.
         },
     },
     {
@@ -211,10 +275,38 @@ CAMERAS = [
         # insects streaking through it exactly as at Nossob.
         #
         # The starting-point guess was far too loose. It fired on 46 of 226
-        # frames (20%) and not one of the frames pulled back contained an
-        # animal: they were insects, an overexposed blowout on the bright
+        # frames (20%). Most were insects, an overexposed blowout on the bright
         # presets, and preset 9 diffing against a smeared background. DIST_MAX
         # takes 30 of those, BLOB_MIN 45 takes most of the rest, leaving 11.
+        #
+        # CORRECTED 2 SEP 2026. This block used to claim that NOT ONE of those
+        # frames contained an animal. That is false. Two p9 night frames of
+        # 30 Aug, burnt-in 20:23:46 (blob 632, fill 0.48) and 20:24:00 (blob
+        # 334, fill 0.68), UTC 18:31:50 and 18:32:14, contain an ELEPHANT that
+        # visibly moves between them, and the second is in hits/, so it scored.
+        # That is Talamati's first confirmed night animal.
+        #
+        # NEITHER ROW MEASURES THE ANIMAL. Settled from the 30 Aug CSV the
+        # same day: 18:32:14 is bw 35 x bh 14, a 700x280 px box, and 18:31:50
+        # is 83x16, a 1660x320 px box. The elephant is about 160x210 px. Both
+        # boxes are illumination bands with an animal inside them, exactly like
+        # the p16 lion at Nossob, so they are documented in animals.md as
+        # "seen but not measured" and MUST NOT be used to tune anything.
+        #
+        # IT CHANGES NO THRESHOLD HERE, but it does expose one thing worth
+        # knowing: under the LIVE config that whole visit would be silent.
+        # Both frames are now rejected three times over (DIST_MAX 12.8 and
+        # 18.2 against 6.0, NB_MAX 36 and 30 against 25, and the fill floor),
+        # and across 18:25-18:45 UTC not one p9 frame matched its background
+        # closer than 8.5, ranging to 19.5. The twelve frames in that window
+        # that DO pass DIST_MAX are on presets 7, 10, 12 and 14, pointing
+        # elsewhere, with blobs of 0 to 14.
+        #
+        # The 30 Aug hit was an artefact of a config that had no DIST_MAX yet.
+        # The problem is not DIST_MAX; it is that p9's background never
+        # converged, which is what SIG_TOL 25 does when it lumps several
+        # framings into one preset. NOT ACTED ON: there is still no row that
+        # measures a Talamati animal to score a change against.
         #
         # BLOB_MIN 45 is the honest weak point. Nossob's real night animals
         # measured 4 to 51 blocks, so 45 would miss most of them there. It is
@@ -248,6 +340,83 @@ CAMERAS = [
             # night, and the blowout edge is a tall solid bar: 6x23 blocks at
             # fill 0.77 on 30 Aug. 0.80 rejects it. UNMEASURED against any real
             # animal, because Talamati still has none.
+            "FILL_WIDE": 0.80,
+            "DIST_MAX":  6.0,
+            "NB_MAX":    25,
+        },
+    },
+    {
+        # ADDED 2 SEP 2026. THIRD CAMERA, AND EVERY NUMBER BELOW IS BORROWED.
+        #
+        # URL confirmed 2 Sep 2026 from the SANParks page for this cam
+        # (https://www.sanparks.org/travel/webcams/still/satara), which carries
+        # the image as hibiscus.sanparks.org/webcams/satara.jpg. Same host and
+        # same filename pattern as the other two, so curl_cffi with
+        # impersonate=chrome should reach it; that is an inference from the
+        # host, not a measured fetch.
+        #
+        # WHAT IS ACTUALLY KNOWN ABOUT THE SCENE: nothing. Not one frame has
+        # been fetched, analysed or looked at. It is Kruger, like Talamati, and
+        # SANParks describes the surrounding bush as relatively open, which
+        # would put it somewhere between Nossob's bare sand and Talamati's
+        # dense bush. Whether it pans between presets, how wide the sweep is,
+        # whether it is lit at night and by what, and what the natural blob
+        # sizes are, are all unknown.
+        #
+        # SO THE THRESHOLDS ARE TALAMATI'S, COPIED VERBATIM. That is a
+        # deliberate choice, not laziness: Talamati's numbers were measured
+        # against 693 real Kruger night frames and 906 mixed frames, so they
+        # are the best available prior for a Kruger PTZ cam. They are NOT
+        # measurements of Satara and nothing here may be quoted as one.
+        #
+        # IT IS DEAF ON PURPOSE. BLOB_MIN 90 at night and 60 in daylight makes
+        # this a big-animal-only alarm, which for an uncalibrated camera is the
+        # right trade: a quiet log beats a log that is 20% noise, and the
+        # frames worth looking at come from COLLECT=top archiving the largest
+        # blobs regardless of whether anything scores a hit.
+        #
+        # THE FIRST 24 HOURS DECIDE THREE THINGS, in this order:
+        #   1. SIG_TOL. 25 is Talamati's value, set because its PTZ never
+        #      returns to the same framing. If Satara's preset count settles
+        #      low and its `dist` column sits under 10, this is too loose and
+        #      should come down toward Nossob's 11. Read the preset count in
+        #      the run summary and the `dist` distribution in the CSV.
+        #   2. BLOB_MIN. Lower it the moment there is one confirmed animal, the
+        #      same rule as Talamati. Not before.
+        #   3. Whether night is lit at all. If the night frames are black,
+        #      night thresholds are irrelevant and this is a daylight camera.
+        #
+        # NOT DEPLOYED HERE, AND NOT BY OVERSIGHT: CY_MAX, BACT_MAX and
+        # SAT_MAX. All three are fitted to Nossob's specific framing library
+        # and floodlight and inherit as inert 1.01. Copying them to a camera
+        # with zero confirmed animals would be fitting a gate to a negative set
+        # with nothing to protect.
+        "name":  "satara",
+        "label": "Satara waterhole (Kruger)",
+        "url":   "https://hibiscus.sanparks.org/webcams/satara.jpg",
+        "tz":    2,
+        "active": [(0, 24)],
+        "night":  (18, 6),
+
+        "thr": {
+            "SIG_TOL":   25,
+            "PIX_THR":   24,
+            "MIN_N":     6,
+            "DOM_MIN":   0.0,
+            "BLOB_MIN":  60,
+            "BLOB_MAX":  900,
+            "ASP_MAX":   2.2,
+            "FILL_CMP":  0.44,
+            "FILL_WIDE": 0.72,
+            "DIST_MAX":  6.0,
+            "NB_MAX":    25,
+        },
+
+        "thr_night": {
+            "PIX_THR":   26,
+            "BLOB_MIN":  90,
+            "DOM_MIN":   0.40,
+            "FILL_CMP":  0.36,
             "FILL_WIDE": 0.80,
             "DIST_MAX":  6.0,
             "NB_MAX":    25,

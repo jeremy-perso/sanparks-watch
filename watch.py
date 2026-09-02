@@ -80,8 +80,31 @@ DEFAULTS = dict(SIG_TOL=11, PIX_THR=24, BLK_MIN=6, MIN_N=4, BLOB_MIN=3,
                 # exactly as before. Nossob thr_night sets it; see cameras.py.
                 CY_MAX=1.01,
                 # per-preset activity veto: blocks that change this often are
-                # scenery that always moves (grass, leaves) and are ignored
-                ACT_MAX=0.60, ACT_MIN_N=12, ACT_EMA=0.06)
+                # scenery that always moves (grass, leaves) and are ignored.
+                #
+                # ACT_MAX IS NOT A HIT GATE AND MUST NOT BE REUSED AS ONE.
+                # It selects which blocks are allowed to form a blob at all, so
+                # lowering it changes blob, fill, dom, nblobs and cy on every
+                # frame. The 2 Sep notes proposed "ACT_MAX 0.21" meaning a
+                # ceiling on the LOGGED `bact` column; that is BACT_MAX below.
+                # Setting this one to 0.21 would silently re-cut every blob in
+                # the archive and invalidate every threshold measured on it.
+                ACT_MAX=0.60, ACT_MIN_N=12, ACT_EMA=0.06,
+                # Ceiling on `bact`: the mean per-preset activity score of the
+                # blob's OWN blocks. High means the blob sits where this view
+                # always moves (grass, a trough rim that flickers with the
+                # floodlight), which is scenery; an animal stands somewhere the
+                # background is normally still. 1.01 is INERT, since bact is a
+                # mean of EMA values that cannot exceed 1.0, so every camera and
+                # mode that does not override this behaves exactly as before.
+                # Nossob thr_night sets it; see cameras.py for the measurement.
+                BACT_MAX=1.01,
+                # Ceiling on `bsat`: the share of the blob's blocks whose SOURCE
+                # peak pixel touches 250. High means the blob is a cluster of
+                # blown-out point sources, which at Nossob is a floodlit insect.
+                # 1.01 is INERT (bsat is a share, max 1.00). MEASURED BUT NOT
+                # DEPLOYED as of 2 Sep 2026: see the note in cameras.py.
+                SAT_MAX=1.01)
 
 ROOT  = pathlib.Path(__file__).parent
 NTFY  = os.getenv("NTFY_TOPIC", "")
@@ -288,13 +311,20 @@ def is_hit(m, n_frames, t):
     the change is concentrated, and the blob is big, dominant and solid.
 
     m may carry `dist` (distance to the matched preset), `nb` (how many blobs
-    the change broke into) and `cy` (where the blob sits vertically). All
-    default to a passing value so that older callers and the archived selftest
-    rows behave exactly as before."""
+    the change broke into), `cy` (where the blob sits vertically), `bact` (how
+    restless the blob's own blocks normally are) and `bsat` (how much of it is
+    blown out). All default to a passing value so that older callers and the
+    archived selftest rows behave exactly as before.
+
+    The gates are ordered cheapest-first and the FIRST one to fire is the one
+    that rejects a frame; more than one can be true at once. Worth remembering
+    when diagnosing a specific miss."""
     if n_frames < t["MIN_N"]:                             return False
     if m.get("dist", 0.0) > t["DIST_MAX"]:                return False
     if m.get("nb", 1) > t["NB_MAX"]:                      return False
     if m.get("cy", 0.0) > t["CY_MAX"]:                    return False
+    if m.get("bact", 0.0) > t["BACT_MAX"]:                return False
+    if m.get("bsat", 0.0) > t["SAT_MAX"]:                 return False
     if not (t["BLOB_MIN"] <= m["blob"] <= t["BLOB_MAX"]): return False
     if m["dom"] < t["DOM_MIN"]:                           return False
     asp = max(m["bw"] / m["bh"], m["bh"] / m["bw"])
@@ -359,7 +389,18 @@ class Watcher:
         if not self.rows:
             return
         day = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
-        f = self.logs / f"{day}.csv"
+        # The camera name is in the DIRECTORY and in the FILENAME on purpose.
+        # The directory keeps the repo tidy; the filename survives being
+        # downloaded. Before 2 Sep 2026 this was just `{day}.csv`, so pulling
+        # today's log from every camera put three files called 20260902.csv in
+        # one folder and they had to be renamed by hand before anything could
+        # be analysed. With three cameras that is three renames per session.
+        #
+        # This starts NEW files. Any `logs/<cam>/YYYYMMDD.csv` already in the
+        # repo stops being appended to at the moment this ships, so the day it
+        # ships is split across two files for each camera. Nothing reads these
+        # files in code, so no other change is needed.
+        f = self.logs / f"{day}_{self.name}.csv"
         new = not f.exists()
         with f.open("a", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=CSV_COLS)
@@ -427,8 +468,16 @@ class Watcher:
                 log(f"[{self.name}] 403 Forbidden "
                     f"({self.f403}/{FORBID_MAX} consecutive)")
                 if self.f403 >= FORBID_MAX:
+                    # BREAK, DO NOT RETURN. Returning here used to skip save(),
+                    # flush_keep() and write_csv(), so a camera that got blocked
+                    # at minute 8 of a 9-minute run threw away every row and
+                    # every archived frame it had already collected, and lost
+                    # the preset backgrounds it had just learned. Found 2 Sep
+                    # 2026 while adding a third camera: with three cameras on
+                    # one host this path is hit more often, and the frames
+                    # before a block are exactly the ones worth keeping.
                     self.forbidden = True
-                    return
+                    break
                 time.sleep(min(4 * self.f403, 20))
                 continue
             except Exception as e:

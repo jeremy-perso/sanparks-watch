@@ -11,7 +11,10 @@ Every row below is a real measurement, not a guess:
              geometry is what the detector would actually see.
 
 Sources: Nossob night 24 Aug 2026 (in the handover notes); Nossob and Talamati
-daylight 30 Aug 2026, 13:39-14:07 UTC, both cameras watched simultaneously.
+daylight 30 Aug 2026, 13:39-14:07 UTC, both cameras watched simultaneously;
+Nossob and Talamati nights of 30-31 Aug and 31 Aug - 1 Sep; and the night of
+1/2 Sep 2026, the first night on the 26-column schema and so the only source of
+`bact` and `bsat` in this file.
 
 Run it after touching cameras.py or is_hit:   python selftest.py
 """
@@ -23,13 +26,17 @@ CAMS = {c["name"]: c for c in CAMERAS}
 BIG_N = 99                     # past every MIN_N, so geometry is what is tested
 
 
-def M(blob, bw, bh, fill, dom, dist=0.0, nb=1, cy=0.0):
-    """dist, nb and cy all default to passing values, so every row measured
-    before the column existed is tested against exactly the rule it was
-    measured under. cy is the blob centroid as a fraction of frame height,
-    logged from 31 Aug 2026 12:48 UTC; the 24 Aug rows below have none."""
+def M(blob, bw, bh, fill, dom, dist=0.0, nb=1, cy=0.0, bact=0.0, bsat=0.0):
+    """dist, nb, cy, bact and bsat all default to passing values, so every row
+    measured before the column existed is tested against exactly the rule it
+    was measured under. cy is the blob centroid as a fraction of frame height,
+    logged from 31 Aug 2026 12:48 UTC; the 24 Aug rows below have none. bact
+    and bsat are logged from the 1 Sep bundle (26 columns) and exist only on
+    the night of 1/2 Sep and later, so every row above that block defaults to
+    0.0 and is untested against BACT_MAX and SAT_MAX. That is a convention,
+    not evidence: those rows do not vote on either gate."""
     return dict(blob=blob, bw=bw, bh=bh, fill=fill, dom=dom, dist=dist, nb=nb,
-                cy=cy)
+                cy=cy, bact=bact, bsat=bsat)
 
 
 # --- empty waterholes: every one of these must be rejected -------------------
@@ -57,7 +64,7 @@ NATURAL = {
     ],
 }
 
-# --- CONFIRMED, 30-31 Aug 2026: real frames, eyes on the JPEG ----------------
+# --- CONFIRMED, 30 Aug - 2 Sep 2026: real frames, eyes on the JPEG -----------
 # Nossob after dark. Every row here was archived, looked at, and either does or
 # does not contain an animal. This is the first non-synthetic sensitivity test
 # the project has had. dist and nb are the real logged values.
@@ -100,6 +107,76 @@ REAL_ANIMAL = {
         ("LION drinking, close framing, 01 01:57:09Z", M(524, 48, 29, 0.38, 0.96, 5.4, 8, 0.227)),
         ("lion, third preset, 01 01:58:59Z", M(5, 3, 3, 0.56, 0.83, 0.8, 2, 0.537)),
         ("lion, leaving, 01 01:59:11Z", M(3, 2, 2, 0.75, 0.75, 0.6, 2, 0.531)),
+
+        # --- NIGHT OF 1/2 SEP 2026, added 2 Sep. The first night on the
+        # 26-column schema, so these are the only rows in this file carrying
+        # bact and bsat, and the only rows that can score BACT_MAX or SAT_MAX.
+        #
+        # Every row here comes from the archived CSV and is documented in
+        # animals.md with a cx/cy/bw/bh box that lands on the animal. Two
+        # frames that contain animals are NOT here:
+        #   01 20:36:59 p16 blob 433. A lion is unmistakably drinking, but the
+        #     logged blob is 61x23 blocks (1220x460 px) centred on the whole
+        #     lit sand bar while the animal is about 140x70 px. Not a row
+        #     measuring the animal.
+        #   01 21:55:52 p15 blob 3 and 02 00:34:13 p15 blob 18. Small shapes
+        #     with eyeshine on the trough rim, counted as animals in the
+        #     night's recall but given no bw/bh in animals.md, so the box has
+        #     never been checked. Both currently score hits. Add them the
+        #     moment the box is drawn and confirmed.
+        #
+        # THE LION IS 19 FRAMES ACROSS THREE VISITS and at least two
+        # individuals. Note the spread again: 9 blocks on p14 and 186 on p8
+        # inside the same minute.
+        ("LION visit 1, 01 19:44:57Z", M(116, 13, 18, 0.50, 0.57, 2.7, 11, 0.133, 0.060, 0.00)),
+        ("LION visit 1, 01 19:45:08Z", M(112, 15, 15, 0.50, 0.48, 2.9, 13, 0.107, 0.060, 0.00)),
+        ("LION visit 1, 01 19:46:07Z", M(21, 8, 7, 0.38, 0.88, 1.0, 2, 0.614, 0.063, 0.00)),
+        ("LION visit 1, 01 19:46:54Z", M(9, 4, 3, 0.75, 1.00, 0.7, 1, 0.539, 0.127, 0.00)),
+        ("LION visit 1, 01 19:47:17Z", M(81, 18, 11, 0.41, 0.74, 1.8, 11, 0.299, 0.061, 0.00)),
+        ("LION visit 1, two animals, 01 19:47:52Z", M(186, 17, 23, 0.48, 0.78, 3.1, 6, 0.191, 0.093, 0.00)),
+        ("LION visit 1, 01 19:48:04Z", M(136, 16, 20, 0.42, 0.74, 2.2, 6, 0.172, 0.147, 0.00)),
+        ("LION visit 1, 01 19:48:16Z", M(119, 13, 16, 0.57, 0.58, 2.6, 10, 0.113, 0.102, 0.00)),
+        ("LION visit 1, walking the rim, 01 19:48:52Z", M(39, 11, 8, 0.44, 0.97, 0.9, 2, 0.608, 0.090, 0.00)),
+        ("LION visit 2, 01 20:36:01Z", M(38, 10, 7, 0.54, 1.00, 0.7, 1, 0.622, 0.063, 0.00)),
+        ("LION visit 2, 01 20:36:12Z", M(37, 10, 7, 0.53, 1.00, 0.5, 1, 0.622, 0.119, 0.00)),
+        ("LION visit 2, 01 20:37:11Z", M(142, 23, 14, 0.44, 0.89, 2.6, 9, 0.314, 0.062, 0.00)),
+        ("LION visit 2, 01 20:38:58Z", M(58, 16, 8, 0.45, 0.98, 0.8, 2, 0.606, 0.134, 0.00)),
+        ("LION visit 2, 01 20:39:09Z", M(36, 7, 7, 0.73, 0.80, 0.6, 3, 0.604, 0.199, 0.00)),
+        ("LION visit 3, 02 01:40:00Z", M(156, 23, 11, 0.62, 1.00, 2.8, 1, 0.323, 0.064, 0.00)),
+        ("LION visit 3, 02 01:40:12Z", M(139, 22, 11, 0.57, 1.00, 1.8, 1, 0.319, 0.119, 0.00)),
+        ("LION visit 3, 02 01:42:10Z", M(9, 5, 3, 0.60, 1.00, 0.5, 1, 0.543, 0.081, 0.11)),
+        ("LION visit 3, drinking side on, 02 01:42:57Z", M(134, 21, 11, 0.58, 0.99, 1.2, 2, 0.319, 0.166, 0.00)),
+        # THE HIGHEST bact ON ANY CONFIRMED ANIMAL IN THE ARCHIVE: 0.209.
+        # BACT_MAX 0.21 sits one tick above this single frame.
+        ("LION visit 3, 02 01:43:08Z", M(121, 20, 11, 0.55, 0.99, 1.1, 2, 0.319, 0.209, 0.00)),
+
+        # BARN OWL, resolved to species 2 Sep from the p63 frames: heart-shaped
+        # facial disc, no ear tufts, fine speckling on buff upperparts.
+        ("BARN OWL in the camelthorn, 01 21:06:06Z", M(91, 17, 14, 0.38, 0.62, 1.3, 13, 0.362, 0.110, 0.04)),
+        ("BARN OWL in the camelthorn, 01 21:06:18Z", M(68, 16, 13, 0.33, 0.67, 0.9, 8, 0.362, 0.170, 0.06)),
+        ("BARN OWL whole bird, 01 21:06:54Z", M(231, 23, 28, 0.36, 0.90, 2.8, 8, 0.458, 0.124, 0.00)),
+        # TWO BARN OWLS on the concrete block, four eyeshine points in a 3x7
+        # box. bsat 0.24 is the HIGHEST ON ANY CONFIRMED ANIMAL ANYWHERE, so it
+        # is the hard floor under SAT_MAX. Anything below 0.25 takes the owls.
+        ("TWO BARN OWLS, four eyeshine points, 01 23:46:58Z", M(17, 3, 7, 0.81, 0.89, 0.8, 2, 0.125, 0.062, 0.24)),
+        ("BARN OWL, second frame, 01 23:47:10Z", M(9, 5, 3, 0.60, 0.60, 0.5, 3, 0.093, 0.091, 0.00)),
+
+        ("black-backed jackal, 01 19:13:59Z", M(8, 4, 3, 0.67, 1.00, 0.8, 1, 0.718, 0.079, 0.00)),
+        ("black-backed jackal, 01 19:14:11Z", M(8, 5, 4, 0.40, 1.00, 0.5, 1, 0.694, 0.094, 0.00)),
+        ("black-backed jackal, 01 21:56:16Z", M(6, 3, 4, 0.50, 1.00, 0.4, 1, 0.654, 0.081, 0.00)),
+        ("jackal drinking with reflection, 01 23:20:11Z", M(58, 8, 17, 0.43, 0.79, 1.3, 5, 0.325, 0.060, 0.02)),
+        # Motion-blurred four-legged mammal leaving frame bottom left, roughly
+        # jackal-sized. Not resolvable to species; the box lands on it.
+        ("unresolved night mammal, 01 23:23:19Z", M(27, 7, 7, 0.55, 0.48, 1.2, 9, 0.759, 0.060, 0.00)),
+
+        # HARE, THE ONE CONFIRMED MISS OF THE NIGHT, and a valid measured row:
+        # the box lands exactly on the animal. Long ears laid back, compact
+        # hunched body, sitting in short grass outside the floodlit strip.
+        # It is rejected TWICE over by the live config: CY_MAX 0.85 fires first
+        # at cy 0.859, and FILL_CMP 0.32 would reject it anyway at fill 0.31.
+        # Left in deliberately so the cost of the fill floor and the position
+        # gate is visible in this file rather than argued about in markdown.
+        ("HARE, KNOWN MISS, 01 19:35:08Z", M(11, 7, 5, 0.31, 1.00, 0.4, 1, 0.859, 0.062, 0.00)),
     ],
     ("nossob", "day"): [
         ("dove flock, hit 1", M(48, 12, 7, 0.57, 0.22, 1.7, 17)),
@@ -131,7 +208,18 @@ REAL_ANIMAL = {
 # real confirmed daylight animals that this config does not catch. Raising
 # this number is the goal of the daylight retune; it is a floor on what we
 # have, not a claim about what we want.
-REAL_MIN = {("nossob", "night"): 19, ("nossob", "day"): 2}
+#
+# NIGHT 48 of 50 as of 2 Sep 2026 evening, up from 19 of 20. The denominator
+# grew by the 30 rows of the night of 1/2 Sep: 19 lion frames across three
+# visits, 5 barn owl, 4 jackal, 1 unresolved mammal, and the hare. 29 of the 30
+# pass; the hare does not. The other standing miss is still the 30 Aug drinking
+# jackal at dom 0.36.
+#
+# The night set is now dominated by ONE ANIMAL ON ONE NIGHT. Nineteen of the
+# fifty rows are the same lion, so this number is a weaker independence claim
+# than its size suggests. Read it as "the lion sequence must not break", not as
+# fifty independent tests.
+REAL_MIN = {("nossob", "night"): 48, ("nossob", "day"): 2}
 
 # --- CONFIRMED empty: real frames, eyes on the JPEG, nothing in them ---------
 # The four Nossob dawn hits of 31 Aug (sun rising while the IR-cut filter swaps
@@ -252,6 +340,37 @@ CONFIRMED_FP = {
         ("empty 01 03:25:18Z p8", M(3, 1, 3, 1.00, 0.60, 0.5, 3, 0.963)),
         ("empty 01 03:39:26Z p14", M(23, 12, 3, 0.64, 0.85, 2.1, 2, 0.572)),
         ("empty 01 03:42:02Z p14", M(5, 5, 1, 1.00, 0.71, 1.2, 3, 0.574)),
+
+        # --- NIGHT OF 1/2 SEP 2026, added 2 Sep. THIRTEEN of that night's
+        # confirmed empties, not all 58. Only these thirteen are named
+        # individually and described by eye in the handover notes; the other
+        # 45 are a count, not a list, and five of the night's 36 animal hits
+        # are likewise counted but never written down in animals.md. Until
+        # those five are identified, adding the remaining hits in bulk would
+        # label up to five animals as false positives. See the notes.
+        #
+        # FOUR EMPTY p13 FRAMES ON THE LION'S OWN BOX. Seventy minutes after
+        # the lion drank there (02 01:40:00, blob 156, 23x11, cx 0.091,
+        # cy 0.323, bact 0.064) these fire on an almost identical box with
+        # nothing in the frame. Geometry cannot separate them from the lion.
+        # bact does: 0.252 to 0.392 against the lion's 0.064.
+        ("empty p13, the lion's box, 02 02:53:16Z", M(130, 21, 11, 0.56, 1.00, 2.1, 1, 0.316, 0.252, 0.00)),
+        ("empty p13, the lion's box, 02 02:56:17Z", M(106, 19, 11, 0.51, 0.99, 1.5, 2, 0.307, 0.305, 0.00)),
+        ("empty p13, the lion's box, 02 02:58:56Z", M(72, 18, 10, 0.40, 0.96, 1.2, 4, 0.300, 0.350, 0.00)),
+        ("empty p13, the lion's box, 02 02:59:08Z", M(25, 9, 4, 0.69, 0.83, 0.9, 4, 0.307, 0.392, 0.00)),
+        # NINE FLOODLIT INSECTS, every hit of the night with bsat >= 0.25.
+        # Eight are on preset 14, blobs of 2x2 to 5x4 at bpk 255. These are
+        # what SAT_MAX 0.25 exists for, and it kills them cleanly. Note that
+        # bact does NOT catch most of them: only two exceed 0.21.
+        ("floodlit insect, 01 18:24:03Z p11", M(3, 3, 3, 0.33, 0.60, 1.1, 2, 0.222, 0.314, 0.33)),
+        ("floodlit insect, 01 21:41:51Z p14", M(4, 2, 3, 0.67, 0.50, 0.8, 3, 0.111, 0.142, 0.75)),
+        ("floodlit insect, 01 21:42:03Z p14", M(3, 2, 2, 0.75, 1.00, 0.6, 1, 0.105, 0.185, 1.00)),
+        ("floodlit insect, 01 21:42:14Z p14", M(3, 2, 2, 0.75, 1.00, 0.5, 1, 0.105, 0.234, 1.00)),
+        ("floodlit insect, 01 21:51:08Z p14", M(3, 2, 2, 0.75, 0.50, 0.4, 2, 0.062, 0.098, 0.67)),
+        ("floodlit insect, 01 21:53:53Z p14", M(4, 3, 2, 0.67, 0.67, 0.4, 2, 0.046, 0.115, 0.50)),
+        ("floodlit insect, 01 21:56:51Z p14", M(6, 3, 3, 0.67, 0.75, 0.5, 2, 0.037, 0.132, 0.67)),
+        ("floodlit insect, 01 21:57:02Z p14", M(6, 3, 3, 0.67, 1.00, 0.3, 1, 0.037, 0.184, 0.67)),
+        ("floodlit insect, 02 00:05:55Z p14", M(12, 5, 4, 0.60, 1.00, 1.2, 1, 0.755, 0.060, 1.00)),
     ],
 }
 
@@ -266,7 +385,23 @@ CONFIRMED_FP = {
 # stop them. They are big, compact and bright, which is also what a genuine
 # large animal at that waterhole would be. Fixing this needs the corrected
 # `bsat`, not a threshold.
-FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 36, ("talamati", "night"): 8}
+#
+# NOSSOB NIGHT IS NOW 43 OF 81, revised 2 Sep 2026 evening. The denominator
+# grew from 68 to 81 with the thirteen named empties of 1/2 Sep. The path:
+#   81 rows, BACT_MAX inert (the config deployed on 1 Sep)  49 leak
+#   + BACT_MAX 0.21                                         43 leak
+# Recall did not move: 48 of 50 both before and after. Nothing is traded.
+#
+# SAT_MAX 0.25 was MEASURED AND NOT SHIPPED. On top of BACT_MAX it takes this
+# to 36 of 81, still at 48 of 50. It is held back so the next night is a clean
+# out-of-sample test of BACT_MAX alone. If it is added later, drop this to 36.
+#
+# CAUTION ON THE DENOMINATOR. 81 is not the whole picture. The night of 1/2 Sep
+# produced 58 confirmed empties and only 13 of them are named individually
+# anywhere, so 45 real false positives are absent from this file. Measured on
+# the full archive instead of on this set, BACT_MAX 0.21 removes 17 of those
+# 58, not 6 of 13. Neither number is wrong; they are different denominators.
+FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 43, ("talamati", "night"): 8}
 
 # --- synthetic animals injected into real frames -----------------------------
 INJECTED = {
@@ -327,7 +462,7 @@ def main():
         print(f"  {'ok  ' if ok else 'FAIL'} {cam:9s} {mode:5s} {label:18s} "
               f"{got}/{len(rows)} detected (need >= {want})")
 
-    print("\nCONFIRMED animals in real frames (30-31 Aug 2026)")
+    print("\nCONFIRMED animals in real frames (30 Aug - 2 Sep 2026)")
     for (cam, mode), rows in REAL_ANIMAL.items():
         got = sum(is_hit(m, BIG_N, thr_for(cam, mode)) for _, m in rows)
         want = REAL_MIN[(cam, mode)]
