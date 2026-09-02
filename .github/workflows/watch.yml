@@ -13,7 +13,13 @@ on:
     # or merely stops updating.
     #
     # cameras.py gates each camera again and its `active` is now [(0, 24)];
-    # widening only one of the two does nothing.
+    # widening only one of them does nothing.
+    #
+    # A THIRD CAMERA, SATARA, WAS ADDED 2 SEP 2026. It costs no wall clock:
+    # the cameras are threads sharing one deadline, so RUNTIME is unchanged and
+    # timeout-minutes 15 still has its 5 minutes of headroom. What it does cost
+    # is about 50% more archived JPEG per day and one more chance per run of a
+    # 403 turning the job red.
     #
     # RUNTIME 270 -> 540 on 1 Sep 2026. At 270 s inside an 882 s cycle the
     # detector was awake 31% of the time and two thirds of every image both
