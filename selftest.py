@@ -10,6 +10,14 @@ Every row below is a real measurement, not a guess:
              background with a synthetic elliptical target added, so the
              geometry is what the detector would actually see.
 
+             SCORED TWICE since 3 Sep 2026. In GEOMETRY mode at dist 0 and
+             nblobs 1, which is what the shape alone can do, and in FIELD mode
+             at the camera's real daylight dist and nblobs, which is what the
+             detector would actually do. The old suite reported only the first
+             and so read 8/8 while the live detector caught nothing in daylight
+             for four days. See the FIELD block for the numbers and their
+             provenance.
+
 Sources: Nossob night 24 Aug 2026 (in the handover notes); Nossob and Talamati
 daylight 30 Aug 2026, 13:39-14:07 UTC, both cameras watched simultaneously;
 Nossob and Talamati nights of 30-31 Aug and 31 Aug - 1 Sep; and the night of
@@ -177,6 +185,21 @@ REAL_ANIMAL = {
         # Left in deliberately so the cost of the fill floor and the position
         # gate is visible in this file rather than argued about in markdown.
         ("HARE, KNOWN MISS, 01 19:35:08Z", M(11, 7, 5, 0.31, 1.00, 0.4, 1, 0.859, 0.062, 0.00)),
+
+        # --- NIGHT OF 2/3 SEP 2026, added 3 Sep evening. Three frames from
+        # frames/nossob/20260902, each looked at with the logged cx/cy/bw/bh
+        # box drawn on it, each box landing on the animal. A fourth frame of
+        # that night, 03 02:08:58 p15 blob 10, contains an animal and is NOT
+        # here: its box is on the trough rim while the animal is up in the
+        # grass at the top left. It is in animals.md as seen but not measured.
+        #
+        # THE LION FRAME IS THE ONE THAT MOVED A THRESHOLD. At dist 7.2 it was
+        # a single-gate miss under DIST_MAX 6.0, and it is the whole reason
+        # Nossob night DIST_MAX is now 8.0. Keep it here: if DIST_MAX is ever
+        # taken back below 7.2 this row is what fails.
+        ("jackal at the rim, side on, 02 17:44:17Z", M(66, 11, 12, 0.50, 0.94, 1.2, 4, 0.399, 0.064, 0.00)),
+        ("THREE LIONS drinking, 02 21:16:00Z", M(252, 17, 27, 0.55, 0.49, 7.2, 7, 0.254, 0.063, 0.00)),
+        ("LIONS drinking, left of the pan, 02 23:02:59Z", M(201, 28, 19, 0.38, 0.99, 2.1, 3, 0.311, 0.063, 0.00)),
     ],
     ("nossob", "day"): [
         ("dove flock, hit 1", M(48, 12, 7, 0.57, 0.22, 1.7, 17)),
@@ -219,7 +242,18 @@ REAL_ANIMAL = {
 # fifty rows are the same lion, so this number is a weaker independence claim
 # than its size suggests. Read it as "the lion sequence must not break", not as
 # fifty independent tests.
-REAL_MIN = {("nossob", "night"): 48, ("nossob", "day"): 2}
+#
+# NIGHT 51 OF 53 as of 3 Sep 2026 evening, up from 48 of 50. Three rows added
+# from the night of 2/3 Sep, all three caught: a jackal at the rim, and two
+# separate lion groups. The two standing misses are unchanged (the 30 Aug
+# drinking jackal at dom 0.36, and the hare).
+#
+# 51 IS A GUARD ON DIST_MAX, NOT JUST A COUNT. The 02 21:16:00 lion row sits
+# at dist 7.2 and only passes because Nossob night DIST_MAX went to 8.0 in the
+# same session. Take DIST_MAX back below 7.2 and this drops to 50 and FAILS.
+# That is deliberate: the threshold and the animal that justifies it are now
+# tied together in the test.
+REAL_MIN = {("nossob", "night"): 51, ("nossob", "day"): 2}
 
 # --- CONFIRMED empty: real frames, eyes on the JPEG, nothing in them ---------
 # The four Nossob dawn hits of 31 Aug (sun rising while the IR-cut filter swaps
@@ -403,6 +437,49 @@ CONFIRMED_FP = {
 # 58, not 6 of 13. Neither number is wrong; they are different denominators.
 FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 43, ("talamati", "night"): 8}
 
+# --- what a real daylight frame actually looks like --------------------------
+# THE BUG THIS FIXES, FOUND 2 SEP 2026 AND CORRECTED 3 SEP.
+#
+# Every INJECTED row below passes five positional arguments to M(), so it is
+# scored at `dist` 0.0 and `nblobs` 1. No real daylight frame has ever had
+# either. The suite therefore reported 8/8 gemsbok and 5/5 elephant while the
+# live detector caught nothing in daylight for four days, and it was
+# structurally incapable of seeing a daylight failure.
+#
+# The injected rows are still worth keeping: they measure whether the GEOMETRY
+# of an animal-sized target clears BLOB_MIN, DOM_MIN, ASP_MAX and the fill
+# floors. That question is real and the answer is still 8/8. What they cannot
+# do on their own is say whether the frame would ever reach those gates.
+#
+# So each set is now scored TWICE and both numbers are printed:
+#   GEOMETRY  dist 0, nblobs 1, exactly as before. EXPECT_MIN.
+#   FIELD     the camera's real daylight dist and nblobs. EXPECT_FIELD.
+#
+# The field values are medians measured on two independent days:
+#   30 Aug - 2 Sep (in the 20260902d notes):  nblobs 37 / 56 / 140
+#   2 Sep 13:03 - 3 Sep 04:49, 564 daylight rows across the three cameras:
+#       nossob    195 rows  dist median 2.2  nblobs median 38
+#       talamati  188 rows  dist median 6.8  nblobs median 55
+#       satara    181 rows  dist median 10.7 nblobs median 129
+# The two days agree to within one blob, so these are stable numbers.
+#
+# THIS IS A MEDIAN STANDING IN FOR THE FRAME'S OWN VALUE. The injected rows
+# come from 30 Aug 13:39-14:07 UTC and that CSV has not been re-read, so the
+# dist and nblobs of the exact frames each target was pasted into are not
+# known. A median is the honest approximation, not a measurement of those
+# frames. If the 30 Aug CSV is ever loaded, replace these per row.
+FIELD = {
+    "nossob":   dict(dist=2.2,  nb=38),
+    "talamati": dict(dist=6.8,  nb=55),
+    "satara":   dict(dist=10.7, nb=129),
+}
+
+
+def field(cam, m):
+    """The same measured target, put back into a real daylight frame."""
+    return dict(m, **FIELD[cam])
+
+
 # --- synthetic animals injected into real frames -----------------------------
 INJECTED = {
     ("nossob", "day", "gemsbok 200x140"): [
@@ -427,12 +504,33 @@ INJECTED = {
     ],
 }
 
-# what we accept today. Anything better is a bonus, anything worse is a bug.
+# GEOMETRY expectation: dist 0, nblobs 1. Does the shape clear the size,
+# dominance, aspect and fill gates? Anything better is a bonus, anything worse
+# is a bug.
 EXPECT_MIN = {
     ("nossob", "day", "gemsbok 200x140"):   8,
     ("nossob", "day", "jackal 80x55"):      0,
     ("talamati", "day", "elephant 400x300"): 5,
     ("talamati", "day", "gemsbok 200x140"):  1,
+}
+
+# FIELD expectation: the same targets at the camera's real daylight dist and
+# nblobs. THIS IS THE NUMBER THAT MATTERS AND IT IS ZERO EVERYWHERE.
+#
+# Measured 3 Sep 2026 with the live config. Every set goes to 0: at Nossob
+# NB_MAX 25 rejects on nblobs 38, at Talamati DIST_MAX 6.0 rejects on dist 6.8
+# before nblobs 55 is even reached. Nothing about the animal's geometry is
+# consulted.
+#
+# This is a floor, not a ceiling: the test fails if a number FALLS below it,
+# so raising these is the whole point of the daylight work. When NB_MAX and
+# DIST_MAX are opened for daylight, this is the dict that moves, and the
+# before/after pair here is the measurement to report.
+EXPECT_FIELD = {
+    ("nossob", "day", "gemsbok 200x140"):   0,
+    ("nossob", "day", "jackal 80x55"):      0,
+    ("talamati", "day", "elephant 400x300"): 0,
+    ("talamati", "day", "gemsbok 200x140"):  0,
 }
 
 
@@ -454,13 +552,19 @@ def main():
         bad += len(fp)
 
     print("\ndetection of injected targets")
+    print("  GEOMETRY = dist 0, nblobs 1. FIELD = the camera's real daylight")
+    print("  dist and nblobs. Only FIELD says what the detector would do.")
     for (cam, mode, label), rows in INJECTED.items():
-        got = sum(is_hit(m, BIG_N, thr_for(cam, mode)) for m in rows)
+        t = thr_for(cam, mode)
+        got = sum(is_hit(m, BIG_N, t) for m in rows)
+        fld = sum(is_hit(field(cam, m), BIG_N, t) for m in rows)
         want = EXPECT_MIN[(cam, mode, label)]
-        ok = got >= want
+        wantf = EXPECT_FIELD[(cam, mode, label)]
+        ok = got >= want and fld >= wantf
         bad += 0 if ok else 1
         print(f"  {'ok  ' if ok else 'FAIL'} {cam:9s} {mode:5s} {label:18s} "
-              f"{got}/{len(rows)} detected (need >= {want})")
+              f"geometry {got}/{len(rows)} (need >= {want})   "
+              f"FIELD {fld}/{len(rows)} (need >= {wantf})")
 
     print("\nCONFIRMED animals in real frames (30 Aug - 2 Sep 2026)")
     for (cam, mode), rows in REAL_ANIMAL.items():

@@ -130,7 +130,55 @@ CAMERAS = [
             # the wide branch. This is a night-only change.
             "FILL_WIDE": 1.01,
             "NB_MAX":    25,
-            "DIST_MAX":  6.0,
+            # 6.0 -> 8.0 AT NIGHT ONLY, 3 SEP 2026 EVENING. Daylight `thr`
+            # above keeps 6.0; this key only exists here.
+            #
+            # THE MISS THAT FORCED IT. 02 21:16:00 UTC, p15, n=287, dist 7.2,
+            # blob 252, 17x27 blocks, fill 0.55, dom 0.49, cx 0.581, cy 0.254,
+            # bact 0.063, nblobs 7, hit=0. Reference frame
+            # frames/nossob/20260902/211600_p15_blob0252_f0.55.jpg, burnt-in
+            # 23:07:46. THREE LIONS: one drinking at the left, one drinking
+            # dead centre with a full reflection, a third standing behind with
+            # only its legs and belly in frame. The logged box lands squarely
+            # on the centre animal's head, chest and reflection. This is a
+            # valid measured row and a SINGLE-GATE miss: DIST_MAX is the only
+            # gate it failed.
+            #
+            # THE MECHANISM, AND IT IS THE UNCOMFORTABLE PART. A large animal
+            # close to the camera changes the 16x9 fingerprint enough to raise
+            # its OWN `dist`. Measured on the 681 Nossob night rows of 2/3 Sep:
+            #     blob   0-3    394 rows   dist median 0.5   p90  1.1
+            #     blob   3-10   121 rows   dist median 0.6   p90  1.7
+            #     blob  10-50    92 rows   dist median 1.3   p90  3.7
+            #     blob  50-200   49 rows   dist median 3.9   p90  6.7
+            #     blob 200+      25 rows   dist median 7.4   p90 10.1
+            # DIST_MAX is therefore not a neutral quality filter at night: it
+            # penalises the biggest, closest and most interesting animals
+            # hardest. The 01 01:57:09 lion already sat at 5.4, inside 6.0 by
+            # 0.6, and that was the warning nobody read.
+            #
+            # WHAT IT COSTS. Nothing measurable. Swept over the same 681 rows
+            # with every other gate live:
+            #     DIST_MAX  6.0 -> 82 hits
+            #     DIST_MAX  7.5 -> 83
+            #     DIST_MAX  8.0 -> 83
+            #     DIST_MAX 11.0 -> 83
+            # Twenty-three rows sit in the 6.0 to 8.0 band and TWENTY-TWO are
+            # rejected by a later gate anyway (NB_MAX on the dusk and dawn
+            # fragmentation, DOM_MIN, BACT_MAX, the fill floors). The
+            # twenty-third is the lion frame. One animal recovered, zero false
+            # positives added, on one night of 681 rows.
+            #
+            # WHY 8.0 AND NOT 11.0. 11 costs nothing on this night either, and
+            # 11 is SIG_TOL, so it would abolish the night dead band outright.
+            # Not taken: it would leave no margin at all between "belongs to
+            # this preset" and "can be judged on it", on one night's evidence.
+            # 8.0 clears the lion at 7.2 by 0.8. Revisit with a second night.
+            #
+            # IT DOES NOT CONFOUND THE BACT_MAX MEASUREMENT. Replayed at
+            # DIST_MAX 8.0 that gate removes 16 of 99 rather than 15 of 97.
+            # The inert-versus-live replay is valid under either value.
+            "DIST_MAX":  8.0,
             # NEW 1 Sep 2026 evening. The blob centroid must sit above this
             # fraction of frame height. Inert everywhere else (DEFAULTS 1.01).
             #
@@ -355,13 +403,22 @@ CAMERAS = [
         # impersonate=chrome should reach it; that is an inference from the
         # host, not a measured fetch.
         #
-        # WHAT IS ACTUALLY KNOWN ABOUT THE SCENE: nothing. Not one frame has
-        # been fetched, analysed or looked at. It is Kruger, like Talamati, and
-        # SANParks describes the surrounding bush as relatively open, which
-        # would put it somewhere between Nossob's bare sand and Talamati's
-        # dense bush. Whether it pans between presets, how wide the sweep is,
-        # whether it is lit at night and by what, and what the natural blob
-        # sizes are, are all unknown.
+        # WHAT IS ACTUALLY KNOWN ABOUT THE SCENE, UPDATED 3 SEP 2026.
+        # The block below used to say "nothing, not one frame has been
+        # fetched". That is no longer true. From 861 rows of 2/3 Sep and two
+        # archived daylight frames:
+        #   - It IS lit at night. bright median 48.8, px median 2330.
+        #   - It DOES pan, and widely: dist plateaus at 9-13 on presets with
+        #     200+ frames, which is a sweep, not noise.
+        #   - Daylight is very busy. nblobs median 129 against Nossob's 38 and
+        #     Talamati's 55, px median 38783 of ~75k visible.
+        #   - Two archived frames: a long straight concrete water channel with
+        #     algae, open bush behind. Small birds on the rim measure about 4
+        #     blocks each, far below any usable BLOB_MIN.
+        # STILL UNKNOWN: natural blob sizes on a converged background, because
+        # no Satara background has ever converged. Every blob statistic this
+        # camera has produced is a background-mismatch statistic. Do not quote
+        # any of them as a measurement of the scene.
         #
         # SO THE THRESHOLDS ARE TALAMATI'S, COPIED VERBATIM. That is a
         # deliberate choice, not laziness: Talamati's numbers were measured
@@ -376,15 +433,14 @@ CAMERAS = [
         # blobs regardless of whether anything scores a hit.
         #
         # THE FIRST 24 HOURS DECIDE THREE THINGS, in this order:
-        #   1. SIG_TOL. 25 is Talamati's value, set because its PTZ never
-        #      returns to the same framing. If Satara's preset count settles
-        #      low and its `dist` column sits under 10, this is too loose and
-        #      should come down toward Nossob's 11. Read the preset count in
-        #      the run summary and the `dist` distribution in the CSV.
+        #   1. SIG_TOL. ANSWERED 3 SEP 2026, see the SIG_TOL entry below.
         #   2. BLOB_MIN. Lower it the moment there is one confirmed animal, the
         #      same rule as Talamati. Not before.
-        #   3. Whether night is lit at all. If the night frames are black,
-        #      night thresholds are irrelevant and this is a daylight camera.
+        #   3. Whether night is lit at all. ANSWERED 3 SEP 2026: IT IS LIT.
+        #      680 night rows of 2/3 Sep, `bright` median 48.8 (range 14.1 to
+        #      178.9) against Nossob's 65.3 and Talamati's 106.2, and `px`
+        #      median 2330 changed pixels. Not a black frame. The night
+        #      thresholds are live and they matter.
         #
         # NOT DEPLOYED HERE, AND NOT BY OVERSIGHT: CY_MAX, BACT_MAX and
         # SAT_MAX. All three are fitted to Nossob's specific framing library
@@ -399,7 +455,71 @@ CAMERAS = [
         "night":  (18, 6),
 
         "thr": {
-            "SIG_TOL":   25,
+            # 25 -> 11 ON 3 SEP 2026. THE ONE DETECTION CHANGE OF THAT SESSION.
+            # It applies to both modes: thr_night does not set SIG_TOL, so it
+            # inherits this one. 11 is Nossob's value and DEFAULTS'.
+            #
+            # THE PROBLEM IS UPSTREAM OF EVERY THRESHOLD IN THIS BLOCK.
+            # Measured on 861 Satara rows, 2 Sep 13:03 to 3 Sep 04:49 UTC:
+            #   90% of the 181 daylight rows and 45% of the 680 night rows sit
+            #   in the DEAD BAND, 6.0 < dist <= 25. Those frames are close
+            #   enough to be ADMITTED to a preset (SIG_TOL 25) and too far to
+            #   be JUDGED on it (DIST_MAX 6.0), so they can never score a hit,
+            #   and line 593 of watch.py folds every one of them into the
+            #   background anyway. The background becomes the average of a
+            #   whole PTZ sweep.
+            #
+            # THE PRESETS DO NOT CONVERGE, AND THAT IS THE PROOF.
+            #   p2, night, 280 frames: dist median by n-tercile 8.8, 9.3, 8.9.
+            #   p0, day,   146 frames: 11.0, 10.0, 13.3. Getting worse.
+            # Against Nossob at SIG_TOL 11 over the same hours:
+            #   p14, night, 132 frames: 0.6, 0.6, 0.7, and 121 of 132 under 2.
+            # A converged preset sits under 2. These sit at 9 to 13 forever.
+            # The distance histograms are broad and unimodal, not bimodal, so
+            # this is not two clean views lumped together: it is one preset
+            # whose signature walks the sweep, because line 540 drags it 0.3
+            # toward every frame that matches.
+            #
+            # SEVEN PRESETS IN TWO DAYS. Satara created ids 0-6 and no more,
+            # while Nossob at SIG_TOL 11 creates about 25 a day. The trigger
+            # written here on 2 Sep ("if the preset count settles low ... come
+            # down toward Nossob's 11") is met.
+            #
+            # WHAT IT COSTS, HONESTLY. Nothing measurable, because there is
+            # nothing to lose: Satara has scored 2 hits in its whole life and
+            # both are confirmed false positives. Opening NB_MAX changes
+            # nothing here either - replayed on the 181 daylight rows, NB_MAX
+            # 25/40/60/80/120/200 all give 0 hits, because DIST_MAX rejects 158
+            # of 181 first. No threshold in this block can do anything until
+            # the backgrounds converge.
+            #
+            # WHAT IT RISKS. More presets, each deaf for its first MIN_N 6
+            # frames, and faster arrival at PRESET_CAP 120. That is designed
+            # behaviour (least-recently-seen eviction, logged) and the cap was
+            # raised to 120 for exactly this. Estimated, NOT measured: if the
+            # sweep splits the way Nossob's does, expect 30-60 new ids a day
+            # and MIN_N rejections up from 14 a night to perhaps 60-100.
+            #
+            # 11 IS BORROWED FROM NOSSOB, NOT MEASURED ON SATARA. The
+            # fingerprints are not in the CSV, so the split cannot be simulated
+            # without re-fetching the frames. The number to check tomorrow is
+            # NOT the hit count. It is the dead-band share and the dist
+            # tercile trend on the largest preset. If dist still plateaus above
+            # 6, 11 is still too loose and the next stop is DIST_MAX itself.
+            #
+            # TALAMATI IS DELIBERATELY NOT CHANGED WITH IT. It has the same
+            # disease (48% of night rows in the dead band; p92, 236 frames,
+            # dist 12.3 / 12.0 / 11.8) but it has confirmed daylight animals
+            # and one confirmed night elephant, so it has something to lose.
+            # Satara has nothing, which makes it the free test bed. If this
+            # works at Satara, Talamati follows next session on evidence
+            # instead of on inference.
+            #
+            # EXISTING STATE LINGERS. The smeared p0 and p2 backgrounds are in
+            # the Actions cache and will keep capturing whatever falls within
+            # 11 of them until PRESET_TTL (7 days) or eviction retires them.
+            # Expect the dead-band share to fall over days, not in one run.
+            "SIG_TOL":   11,
             "PIX_THR":   24,
             "MIN_N":     6,
             "DOM_MIN":   0.0,
