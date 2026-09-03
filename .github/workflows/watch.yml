@@ -43,8 +43,10 @@ on:
         description: "Frames to archive: top | all | hits"
         default: "top"
       top_n:
-        description: "Frames kept per run in 'top' mode (4 for a collection day)"
-        default: "1"
+        # Kept in step with the scheduled default below. Both go back to 1
+        # when the 3 Sep 2026 collection day ends. Irrelevant when collect=all.
+        description: "Frames kept per run in 'top' mode (1 normally, 4 on a collection day)"
+        default: "4"
       force_all_hours:
         description: "Ignore the active-hours gate (1 = yes)"
         default: "1"
@@ -92,14 +94,29 @@ jobs:
           NTFY_TOPIC:      ${{ secrets.NTFY_TOPIC }}
           RUNTIME:         ${{ inputs.runtime || '540' }}
           COLLECT:         ${{ inputs.collect || 'top' }}
-          # BACK TO 1 on the evening of 1 Sep 2026. The collection half-day
-          # ran at 4 and produced 76 archived daylight frames per camera
-          # between 09:52 and 15:51 UTC. Those have been reviewed; see the
-          # notes, section on the daylight collection day. Raise it to 4 again
-          # by manual dispatch when another labelling pass is wanted, but do
-          # not leave it there: at 4 it is roughly 60 MB of JPEG per full
-          # daylight day.
-          TOP_N:           ${{ inputs.top_n || '1' }}
+          # 1 -> 4 ON 3 SEP 2026 FOR A DAYLIGHT COLLECTION DAY.
+          # REVERT TO 1 BEFORE DARK. At 4 this is roughly 50 MB of JPEG per
+          # full daylight day, from the 900px thumbnails the archive actually
+          # stores and the observed cadence of about one run every 14.7 min.
+          #
+          # WHY, THIS TIME. The daylight blob is the project's biggest unknown:
+          # eleven of the thirteen daylight frames ever reviewed have a box
+          # that lands on nothing, and all thirteen came from TOP_N 1, which
+          # keeps only the single largest blob of each run. That is the most
+          # broken frame of every window, by construction. Four per run is
+          # still biased toward big blobs but it is four times the sample and
+          # it costs one line.
+          #
+          # THE UNBIASED SAMPLE IS A SEPARATE JOB and it is a manual dispatch,
+          # not this line: one run with collect=all archives every frame of a
+          # 9-minute window, about 60 a camera, and that is the only thing that
+          # answers "does the blob land on the animal when the background is
+          # good". Do NOT set collect=all here; a full day of it is ~190 MB.
+          #
+          # History of this line: back to 1 on the evening of 1 Sep 2026 after
+          # a collection half-day at 4 produced 76 archived daylight frames per
+          # camera between 09:52 and 15:51 UTC.
+          TOP_N:           ${{ inputs.top_n || '4' }}
           FORCE_ALL_HOURS: ${{ inputs.force_all_hours || '' }}
         run: python watch.py
 
