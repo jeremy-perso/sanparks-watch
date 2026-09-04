@@ -268,6 +268,21 @@ CONFIRMED_FP = {
     # Every Talamati night hit that survived the 31 Aug gates was archived and
     # looked at. All nine were out-of-focus insects near the lens.
     ("talamati", "night"): [
+        # --- ADDED 4 SEP 2026: FOUR TALAMATI p41 FRAMES, ALL REVIEWED --------
+        # The first two are the RESERVOIR WALL view and differ from each other
+        # only by a whole-frame haze and gain shift. The second two are the
+        # GRASS view of the SAME PRESET ID (see cameras.py on p41: preset 41 is
+        # two camera positions) and each contains a small dark mark low in the
+        # grass at the IDENTICAL pixel position 29 minutes apart, which is a
+        # static gap in a tussock, not an animal.
+        #
+        # These are the most useful negatives in this file today, because they
+        # sit on the preset the 4 Sep SIG_TOL change is aimed at. If splitting
+        # p41 turns any of them into a leak, this suite says so immediately.
+        ("talamati p41 03 18:27:52Z wall, gain shift", M(626, 70, 19, 0.47, 0.53, 18.1, 67, 0.833, 0.351, 0.34)),
+        ("talamati p41 03 18:28:05Z wall, gain shift", M(291, 38, 18, 0.43, 0.43, 12.1, 52, 0.834, 0.453, 0.19)),
+        ("talamati p41 03 18:33:05Z grass, static gap", M(621, 52, 38, 0.31, 0.44, 18.3, 55, 0.406, 0.360, 0.30)),
+        ("talamati p41 03 19:02:14Z grass, same gap 29 min later", M(385, 55, 19, 0.37, 0.33, 17.0, 53, 0.800, 0.350, 0.28)),
         ("insects in the IR floodlight", M(31, 7, 6, 0.74, 0.55, 2.5, 9)),
         ("insects, second frame", M(17, 6, 5, 0.57, 0.44, 3.1, 11)),
         ("preset 9 against a smeared background", M(880, 47, 44, 0.43, 0.87, 10.0, 32)),
@@ -405,6 +420,14 @@ CONFIRMED_FP = {
         ("floodlit insect, 01 21:56:51Z p14", M(6, 3, 3, 0.67, 0.75, 0.5, 2, 0.037, 0.132, 0.67)),
         ("floodlit insect, 01 21:57:02Z p14", M(6, 3, 3, 0.67, 1.00, 0.3, 1, 0.037, 0.184, 0.67)),
         ("floodlit insect, 02 00:05:55Z p14", M(12, 5, 4, 0.60, 1.00, 1.2, 1, 0.755, 0.060, 1.00)),
+
+    ],
+    # --- ADDED 4 SEP 2026: SATARA'S FIRST NEGATIVE ROW -------------------------
+    # 04 02:25:12 p4, reviewed with the box drawn. px 12,930 and nblobs 107 on a
+    # hazy flat frame with nothing in it. It sits 22 minutes after the confirmed
+    # spotted hyena on the same preset, which is why it was pulled and looked at.
+    ("satara", "night"): [
+        ("satara 04 02:25:12Z p4, haze", M(154, 44, 12, 0.29, 0.16, 5.1, 107, 0.892, 0.171, 0.00)),
     ],
 }
 
@@ -435,7 +458,14 @@ CONFIRMED_FP = {
 # anywhere, so 45 real false positives are absent from this file. Measured on
 # the full archive instead of on this set, BACT_MAX 0.21 removes 17 of those
 # 58, not 6 of 13. Neither number is wrong; they are different denominators.
-FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 43, ("talamati", "night"): 8}
+#
+# ADDED 4 SEP 2026: five new confirmed empties, four Talamati p41 and one
+# Satara. Caps are UNCHANGED because none of the five leaks under the live
+# config, so talamati night is now 8 of 25 rather than 8 of 21 and satara night
+# opens at 0 of 1. A cap that does not move when the denominator grows is the
+# only honest way to add negatives.
+FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 43,
+          ("talamati", "night"): 8, ("satara", "night"): 0}
 
 # --- what a real daylight frame actually looks like --------------------------
 # THE BUG THIS FIXES, FOUND 2 SEP 2026 AND CORRECTED 3 SEP.
@@ -534,8 +564,123 @@ EXPECT_FIELD = {
 }
 
 
+# --- KNOWN MISSES: REPORTED, NOT ASSERTED ------------------------------------
+# ADDED 4 SEP 2026, from 48 archived JPEGs reviewed with the logged box drawn.
+#
+# WHY THESE ARE NOT `REAL_ANIMAL` ROWS. Every one is a confirmed animal with a
+# CSV row, and they are the FIRST such rows either Kruger camera has ever had.
+# They belong in REAL_ANIMAL on the merits. But each fails two or three gates,
+# so adding them there turns this suite red on the day it ships and it stays
+# red until a recall-first config lands, which is blocked behind the identify
+# job. A permanently failing suite stops being read, and that is a worse
+# outcome than a suite that reports honestly and passes.
+#
+# SO THEY LIVE HERE AND THEY ARE PRINTED EVERY RUN with the gate that stops
+# each one. That does three jobs a comment could not:
+#   1. it keeps the count of known misses visible instead of buried in a notes
+#      file, so nobody re-derives it;
+#   2. it turns any config change into an immediate readout of which known
+#      animals it recovers, which is exactly the question every threshold
+#      argument in this project has been trying to answer by hand;
+#   3. when the recall-first config does land, this list moves to REAL_ANIMAL
+#      wholesale and the REAL_MIN numbers are already known.
+#
+# THE PROMOTION RULE. A row moves out of here into REAL_ANIMAL the moment it
+# is detected by the live config. If it is detected, it is a floor worth
+# guarding; if it is missed, it is a target. Nothing stays here once it passes.
+KNOWN_MISSES = {
+    ("talamati", "day"): [
+        # THE ONE TALAMATI DAYLIGHT ROW WHOSE BOX IS ON THE ANIMALS. Four
+        # elephants at the reservoir wall including a calf; the box covers the
+        # drinking adult, the calf and the walking animal. blob 242 clears
+        # BLOB_MIN 60 four times over. It fails DIST_MAX at 7.6, NB_MAX at 38
+        # and FILL_CMP at 0.28, which is why no single-gate change recovers it.
+        ("03 10:22:08Z p90, 4 elephants at the wall, BOX ON THEM",
+         M(242, 34, 25, 0.28, 0.60, 7.6, 38, 0.568, 0.356, 0.13)),
+        # Male lion with a full mane, in daylight. New for this camera. He is
+        # about 6.8 x 5.1 blocks, roughly 20-25 filled, against BLOB_MIN 60.
+        # THE FLOOR IS THE BINDING GATE HERE and no gate change touches it: the
+        # row below is the logged blob, which is a foreground shadow band, not
+        # the lion. Kept so the count of known misses is honest.
+        ("03 13:02:05Z p90, MANED MALE LION, below the floor, box elsewhere",
+         M(301, 45, 12, 0.56, 0.51, 5.9, 26, 0.799, 0.354, 0.15)),
+        # Egyptian goose on the wall rim, new species. ~14 x 7 blocks, 55-70
+        # filled, right on BLOB_MIN 60. Lost entirely to MIN_N: preset 106 was
+        # on its THIRD frame ever, so n=3 is passed here deliberately and this
+        # row is the only one in the file that tests MIN_N at all.
+        ("03 06:52:13Z p106, Egyptian goose, MIN_N n=3",
+         M(1729, 96, 54, 0.33, 0.85, 8.1, 76, 0.499, 0.060, 0.05)),
+    ],
+    ("talamati", "night"): [
+        # SECOND CONFIRMED TALAMATI NIGHT ANIMAL. Elephant at the wall, domed
+        # head, ear held out, trunk over the rim, tusk visible. About 15 x 10
+        # blocks, 90-110 filled, so IT CLEARS BLOB_MIN 90. The logged blob is
+        # the pool of floodlit ground in front of the wall; blob2 is 94.
+        # "Largest blob wins" is what loses this animal, not the floor.
+        ("03 18:32:53Z p41, ELEPHANT at the wall, box on floodlit ground",
+         M(538, 71, 20, 0.38, 0.50, 18.9, 82, 0.822, 0.360, 0.30)),
+    ],
+    ("satara", "day"): [
+        # Spotted hyena, adult standing in the channel with two juveniles. The
+        # box covers the adult. ~9 x 14 blocks, clears BLOB_MIN 60. NB_MAX 189.
+        ("03 09:53:04Z p6, 3 spotted hyenas, box on the adult",
+         M(239, 44, 20, 0.27, 0.21, 3.6, 189, 0.299, 0.261, 0.08)),
+        # The clearest hyena image in the project: lying chest-deep, head on
+        # the rim, drinking. The box covers it. Lost to MIN_N at n=2.
+        ("03 09:54:05Z p15, spotted hyena lying, MIN_N n=2",
+         M(868, 54, 31, 0.52, 0.58, 6.5, 48, 0.278, 0.060, 0.07)),
+        # Warthog boar, close and side on, ~24 x 14 blocks. Five times the
+        # floor. NB_MAX 140.
+        ("03 14:40:58Z p0, warthog boar",
+         M(840, 87, 31, 0.31, 0.47, 4.8, 140, 0.753, 0.323, 0.03)),
+        # Banded mongoose, new species, walking the near rim. ~11 x 7 blocks.
+        ("03 15:29:51Z p24, banded mongoose",
+         M(1487, 87, 54, 0.32, 0.77, 4.6, 88, 0.482, 0.109, 0.00)),
+        # Dark antelope, head down drinking, dorsal mane and high shoulders.
+        # Consistent with a subadult blue wildebeest, NOT RESOLVED. Box covers
+        # it loosely. ~11 x 12 blocks.
+        ("03 13:01:28Z p9, wildebeest-type antelope, not resolved",
+         M(515, 86, 21, 0.29, 0.63, 5.1, 122, 0.351, 0.080, 0.02)),
+    ],
+    ("satara", "night"): [
+        # THE PIX_THR FRAME. A dark four-legged animal about 9.6 x 6.4 blocks
+        # walks across open ground, legs and outline legible to the eye, and
+        # the row reads px 49, blob 2. NO GATE IN cameras.py REACHES THIS. It
+        # is here so that the number of known misses is not quietly understated
+        # by leaving out the one that no threshold can fix.
+        ("03 22:49:03Z p3, quadruped at px 49, blob 2, PIX_THR not a gate",
+         M(2, 1, 2, 1.00, 1.00, 0.6, 1, 0.157, 0.060, 0.00)),
+    ],
+}
+
+
 def thr_for(cam, mode):
     return thresholds(CAMS[cam], 13 if mode == "day" else 22)
+
+
+def first_gate(m, t):
+    """Which gate rejects this row FIRST, in is_hit's own order. Reporting
+    only. It exists so a known miss says WHY it is missed without anyone
+    re-deriving it, and so that a config change shows immediately which gate it
+    moved. Kept in step with is_hit by hand; if is_hit gains a gate and this
+    does not, the label is wrong but no assertion depends on it."""
+    if m["blob"] < 1:
+        return "no blob"
+    asp = max(m["bw"] / m["bh"], m["bh"] / m["bw"])
+    lim = t["FILL_CMP"] if asp <= t["ASP_MAX"] else t["FILL_WIDE"]
+    for name, bad, got, thr in (
+            ("DIST_MAX", m["dist"] > t["DIST_MAX"], m["dist"], t["DIST_MAX"]),
+            ("NB_MAX",   m["nb"] > t["NB_MAX"],     m["nb"],   t["NB_MAX"]),
+            ("CY_MAX",   m["cy"] > t["CY_MAX"],     m["cy"],   t["CY_MAX"]),
+            ("BACT_MAX", m["bact"] > t["BACT_MAX"], m["bact"], t["BACT_MAX"]),
+            ("SAT_MAX",  m["bsat"] > t["SAT_MAX"],  m["bsat"], t["SAT_MAX"]),
+            ("BLOB_MIN", m["blob"] < t["BLOB_MIN"], m["blob"], t["BLOB_MIN"]),
+            ("BLOB_MAX", m["blob"] > t["BLOB_MAX"], m["blob"], t["BLOB_MAX"]),
+            ("DOM_MIN",  m["dom"] < t["DOM_MIN"],   m["dom"],  t["DOM_MIN"]),
+            ("FILL",     m["fill"] < lim,           m["fill"], lim)):
+        if bad:
+            return f"{name} ({got} vs {thr})"
+    return "passes every gate (MIN_N is the only thing left)"
 
 
 def main():
@@ -577,6 +722,23 @@ def main():
         for label, m in rows:
             if not is_hit(m, BIG_N, thr_for(cam, mode)):
                 print(f"         missed: {label}")
+
+    print("\nKNOWN MISSES: confirmed animals the live config does NOT catch")
+    print("            (reported, NOT asserted; see KNOWN_MISSES)")
+    caught = 0
+    total = 0
+    for (cam, mode), rows in KNOWN_MISSES.items():
+        t = thr_for(cam, mode)
+        for label, m in rows:
+            total += 1
+            if is_hit(m, BIG_N, t):
+                caught += 1
+                print(f"       NOW CAUGHT  {cam:9s} {mode:5s} {label}")
+                print(f"                   -> PROMOTE THIS ROW TO REAL_ANIMAL")
+            else:
+                print(f"       missed      {cam:9s} {mode:5s} {label}")
+                print(f"                   first gate: {first_gate(m, t)}")
+    print(f"       {caught}/{total} of the known misses are now caught")
 
     print("\nCONFIRMED empty in real frames: leaks must not exceed FP_MAX")
     for (cam, mode), rows in CONFIRMED_FP.items():

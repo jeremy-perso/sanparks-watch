@@ -53,7 +53,21 @@ SW, SH  = 16, 9         # preset-fingerprint resolution
 BLK     = 4             # blob grid: BLK x BLK pixel blocks
 BW, BH  = W // BLK, H // BLK
 TS_BOX  = (0.0, 0.925, 0.22, 1.0)   # burnt-in clock, bottom left, masked out
-PRESET_CAP  = 120        # refuse to learn more views than this
+PRESET_CAP  = 200        # refuse to learn more views than this
+#
+# 120 -> 200 ON 4 SEP 2026, AS INSURANCE FOR THE TALAMATI SIG_TOL CHANGE, NOT
+# AS A FIX FOR ANYTHING. SIG_TOL 25 -> 11 at Talamati will fork a new preset on
+# the 23.2% of its rows that sit above dist 11 (measured, 1,638 rows of 3-4
+# Sep), and Talamati already reached preset id 127 in 29 hours at SIG_TOL 25.
+# Eviction is least-recently-seen and the comment below explains why the old
+# presets are the load-bearing ones, so an eviction storm during the first day
+# of the experiment would confound exactly the measurement the change exists to
+# make. Cost is Actions cache: backgrounds are ~330 KB each, so 200 presets per
+# camera is about 66 MB against 40 MB, on a 10 GB repo cache limit.
+#
+# THIS IS A CEILING, NOT A TARGET. If Talamati is still creating presets fast
+# enough to approach 200 after two days, SIG_TOL 11 is the wrong value here and
+# the answer is to reconsider it, not to raise the cap again.
 PRESET_TTL  = 7 * 86400 # forget a preset unseen for this long
 
 # --- inherited thresholds; cameras.py overrides what differs
@@ -152,10 +166,62 @@ except ImportError:
 #   from  1 Sep bundle    26 columns, added blob2 bact veto30, and bpk/bsat
 #                         now measured at source resolution so their values
 #                         are NOT comparable across the boundary
-CSV_COLS = ["utc", "last_modified", "preset", "n", "dist", "mode", "bright",
-            "px", "blob", "blob2", "bw", "bh", "fill", "dom", "dom2", "cx", "cy",
-            "bpk", "bsat", "bact", "nblobs", "blocks", "vetoed", "veto30",
-            "hit", "bytes"]
+CSV_COLS = ["utc", "last_modified", "preset", "n", "dist", "dist2", "mode",
+            "bright", "px", "pxlo", "edge", "blob", "blob2", "bw", "bh", "fill",
+            "dom", "dom2", "cx", "cy", "bpk", "bsat", "bact", "nblobs",
+            "blocks", "vetoed", "veto30", "hit", "bytes"]
+
+# --- THREE INSTRUMENTATION COLUMNS ADDED 4 SEP 2026 --------------------------
+# NONE OF THEM CHANGES A DECISION. `is_hit` does not read any of them. They
+# exist because three open questions in the notes cannot be answered by
+# replaying the existing log, and each one is cheaper to measure than to argue
+# about.
+#
+# `pxlo` -- PIXELS CHANGED AT PIX_THR_LO INSTEAD OF PIX_THR.
+#   THE QUESTION: is Satara blind at night because of PIX_THR, or because
+#   nothing is there? Measured 3-4 Sep, Satara night `px` median is 27 changed
+#   pixels out of ~75,000 visible, `blob` is exactly 0 in 57.4% of rows and
+#   under 3 in 73.3%, while `bright` is 49 and consecutive JPEGs differ by a
+#   median of 10.7 KB. So frames are arriving, they are lit, and they are
+#   changing on disk.
+#   THE FRAME THAT FORCED THIS: frames/satara/20260903/224903_p3_blob0002.jpg
+#   shows a dark four-legged animal about 9.6 x 6.4 blocks walking across open
+#   ground, legs and body outline legible to the eye, and the row reads px 49,
+#   blob 2. No value of BLOB_MIN, NB_MAX, DIST_MAX, FILL or DOM reaches that
+#   frame. PIX_THR is two steps upstream of all of them.
+#   WHY IT CANNOT BE REPLAYED: px is computed inside change_blocks from the
+#   pixels, which are not in the CSV.
+#   HOW TO READ IT: on Satara night rows, pxlo/px. If it is near 1 the scene
+#   really is static and PIX_THR is innocent. If pxlo is 10x to 100x px on the
+#   frames where an animal is visible, PIX_THR 24 is the gate and a night-only
+#   PIX_THR is the next change at that camera.
+#
+# `edge` -- MEAN ABSOLUTE HORIZONTAL GRADIENT OF THE ANALYSIS FRAME.
+#   THE QUESTION: how many frames are captured while the camera is panning?
+#   frames/satara/20260904/013209_p38_blob0425.jpg is visibly motion-smeared
+#   across every edge. Its row is n=2, px 14,419, nblobs 130: a brand-new
+#   preset, a huge change count, a meaningless blob, and it never recurs. A
+#   mid-pan capture is a triple cost -- it mints a preset, it burns a MIN_N
+#   deaf window (five species have already been lost to MIN_N), and it pollutes
+#   whichever background it lands in.
+#   HOW TO READ IT: `edge` should be roughly stable within a preset. A frame
+#   30-50% below its preset's usual `edge` is blurred. If that class is more
+#   than a percent or two of frames, a blur reject in handle() pays for itself,
+#   and it is a rejection that costs no recall because there is nothing legible
+#   in the frame to lose.
+#
+# `dist2` -- MATCH DISTANCE TO THE SECOND-BEST PRESET.
+#   THE QUESTION: SIG_TOL is being changed at Talamati today on the strength of
+#   the `dist` column, which is the distance to the BEST preset. `dist2` says
+#   how much better the best one was. A frame with dist 3 and dist2 4 is
+#   ambiguous between two presets and is being assigned arbitrarily; a frame
+#   with dist 3 and dist2 30 is unambiguous.
+#   HOW TO READ IT: dist2 - dist, the margin. If Talamati's margin is wide
+#   after the SIG_TOL change, the split is clean. If it is narrow, the new
+#   presets are duplicates of each other and the change has traded one problem
+#   for another. This is the number that says whether to keep 11 or go back.
+
+PIX_THR_LO = 12          # only ever used to compute `pxlo`. Never a decision.
 
 
 class Forbidden403(Exception):
@@ -215,7 +281,13 @@ def analyse(raw):
     g = g - bright
     s = np.asarray(im.resize((SW, SH)), dtype=np.float32)
     s = s - s.mean()
-    return g, s, bright, src
+    # INSTRUMENTATION ONLY, added 4 Sep 2026. Mean absolute horizontal gradient
+    # of the analysis frame: a sharp frame has strong edges, a frame captured
+    # mid-pan is smeared and its gradient collapses. Nothing reads this; it is
+    # logged so the size of the mid-pan class can be counted before anyone
+    # writes a reject for it. One diff over a 384x216 array per frame.
+    edge = float(np.abs(np.diff(g, axis=1)).mean())
+    return g, s, bright, src, edge
 
 
 def block_peaks(src):
@@ -242,10 +314,18 @@ def block_peaks(src):
 
 
 def change_blocks(g, bg, t):
-    """Per-pixel change, folded into the BLK x BLK block grid."""
-    d = (np.abs(g - bg) > t["PIX_THR"]) & MASK
+    """Per-pixel change, folded into the BLK x BLK block grid.
+
+    Returns (px, pxlo, blocks). `pxlo` is the same count at PIX_THR_LO and is
+    INSTRUMENTATION ONLY: nothing downstream reads it and no decision uses it.
+    See the CSV_COLS note. The absolute difference array is computed once and
+    thresholded twice, so this costs one extra comparison over the 384x216
+    array per frame and nothing else."""
+    ad = np.abs(g - bg)
+    d = (ad > t["PIX_THR"]) & MASK
+    lo = (ad > PIX_THR_LO) & MASK
     blocks = (d.reshape(BH, BLK, BW, BLK).sum(axis=(1, 3)) >= t["BLK_MIN"]) & BMASK
-    return int(d.sum()), blocks
+    return int(d.sum()), int(lo.sum()), blocks
 
 
 def blob_metrics(npix, blocks, peaks=None, act=None):
@@ -400,13 +480,44 @@ class Watcher:
         # repo stops being appended to at the moment this ships, so the day it
         # ships is split across two files for each camera. Nothing reads these
         # files in code, so no other change is needed.
-        f = self.logs / f"{day}_{self.name}.csv"
+        #
+        # SCHEMA ROTATION, ADDED 4 SEP 2026. Three instrumentation columns went
+        # in mid-day, so today's file already exists with the 26-column header
+        # and csv.DictWriter would raise ValueError on the extra keys. Rather
+        # than lose the rest of the day, if the header on disk does not match
+        # CSV_COLS we roll to `{day}_{cam}_v2.csv`, `_v3` and so on. The old
+        # file is left exactly as it is.
+        #
+        # This is not a workaround to be removed. The schema has changed four
+        # times in six days and it will change again; every previous change
+        # either silently corrupted a day or had to be timed to a midnight.
+        f = self._csv_path(day)
         new = not f.exists()
         with f.open("a", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=CSV_COLS)
             if new:
                 w.writeheader()
             w.writerows(self.rows)
+
+    def _csv_path(self, day):
+        """Today's log, rolled to a new suffix if the header on disk is a
+        different schema from CSV_COLS."""
+        base = self.logs / f"{day}_{self.name}.csv"
+        for cand in [base] + [self.logs / f"{day}_{self.name}_v{i}.csv"
+                              for i in range(2, 20)]:
+            if not cand.exists():
+                return cand
+            try:
+                with cand.open(newline="") as fh:
+                    hdr = next(csv.reader(fh), [])
+            except OSError:
+                return cand
+            if hdr == CSV_COLS:
+                return cand
+            if cand is base:
+                log(f"[{self.name}] log schema changed ({len(hdr)} cols on "
+                    f"disk, {len(CSV_COLS)} now); rolling to a new file")
+        return self.logs / f"{day}_{self.name}_v20.csv"
 
     # --- io ----------------------------------------------------------------
     def grab(self):
@@ -494,14 +605,21 @@ class Watcher:
         t     = thresholds(self.cam, local)
         mode  = "night" if is_night(local, self.cam.get("night", (18, 6))) else "day"
         stamp = now.strftime("%Y%m%d_%H%M%S")
-        g, sig, bright, src = analyse(raw)
+        g, sig, bright, src, edge = analyse(raw)
         self.nframes += 1
 
-        best, bd = None, 1e9
+        # bd2 is the distance to the SECOND-best preset. Instrumentation only:
+        # nothing branches on it. bd2 - bd is the margin, and a narrow margin
+        # means the frame was assigned to one of two near-identical presets
+        # more or less arbitrarily. That is the number that says whether a
+        # SIG_TOL value is splitting real views or minting duplicates.
+        best, bd, bd2 = None, 1e9, 1e9
         for m in self.presets:
             d = float(np.abs(sig - m["sig"]).mean())
             if d < bd:
-                best, bd = m, d
+                best, bd, bd2 = m, d, bd
+            elif d < bd2:
+                bd2 = d
 
         if best is None or bd > t["SIG_TOL"]:
             # AT THE CAP, EVICT, DO NOT DROP THE FRAME.
@@ -532,14 +650,15 @@ class Watcher:
                     "act": np.zeros((BH, BW), dtype=np.float32)}
             self.next_id += 1
             self.presets.append(best)
-            log(f"[{self.name}] {lm} new preset p{best['id']} (nearest {bd:.1f})")
+            log(f"[{self.name}] {lm} new preset p{best['id']} "
+                f"(nearest {bd:.1f}, next {bd2:.1f}, edge {edge:.1f})")
             return
 
         best["n"] += 1
         best["seen"] = time.time()
         best["sig"] = best["sig"] * 0.7 + sig * 0.3
 
-        npix, raw_blocks = change_blocks(g, best["bg"], t)
+        npix, npixlo, raw_blocks = change_blocks(g, best["bg"], t)
 
         # Learn which blocks are permanently restless for this view, then take
         # them out of the decision. At Talamati most of the frame is grass and
@@ -560,14 +679,18 @@ class Watcher:
         m   = blob_metrics(npix, blocks, block_peaks(src), best["act"])
         m["dist"] = bd                 # how well this frame matched its preset
         hit = is_hit(m, best["n"], t)
-        log(f"[{self.name}] {lm} p{best['id']} n={best['n']} {mode} px={m['px']} "
+        log(f"[{self.name}] {lm} p{best['id']} n={best['n']} {mode} "
+            f"d={bd:.1f}/{min(bd2, 999.9):.1f} edge={edge:.1f} "
+            f"px={m['px']}/{npixlo} "
             f"blob={m['blob']} {m['bw']}x{m['bh']} fill={m['fill']} dom={m['dom']} "
             f"nb={m['nb']} bact={m['bact']} veto={vetoed}/{veto30} "
             f"{'<== HIT' if hit else ''}")
 
         self.rows.append(dict(utc=now.strftime("%Y-%m-%d %H:%M:%S"), last_modified=lm,
                               preset=best["id"], n=best["n"], dist=round(bd, 1),
+                              dist2=round(min(bd2, 999.9), 1),
                               mode=mode, bright=round(bright, 1), px=m["px"],
+                              pxlo=npixlo, edge=round(edge, 2),
                               blob=m["blob"], blob2=m["blob2"],
                               bw=m["bw"], bh=m["bh"], fill=m["fill"],
                               dom=m["dom"], dom2=m["dom2"], cx=m["cx"], cy=m["cy"],

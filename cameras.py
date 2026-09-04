@@ -295,12 +295,86 @@ CAMERAS = [
         # not at all. The frames worth looking at come from COLLECT=top
         # archiving the biggest blobs, not from these hits.
         "thr": {
-            # New-preset distances came in two clusters: 11.8, 11.9, 14.9,
-            # 19.9, then nothing until 50.2. The low cluster is the same view
-            # being learned twice - re-fingerprinting the saved frames put
-            # those pairs 1.8-9.3 apart. 25 sits in the empty gap and stops the
-            # fragmentation that was starving every background of samples.
-            "SIG_TOL":   25,
+            # SIG_TOL 25 -> 11 ON 4 SEP 2026. THIS IS THE ONE DECISION CHANGE
+            # IN THIS BUNDLE. It is the same change made at Satara on 3 Sep,
+            # made here on direct evidence rather than by analogy.
+            #
+            # WHAT 25 WAS FOR, and why it is now wrong. New-preset distances on
+            # 30-31 Aug came in two clusters: 11.8, 11.9, 14.9, 19.9, then
+            # nothing until 50.2. 25 sat in the empty gap and stopped a
+            # fragmentation that was starving every background of samples. That
+            # reading was right about the fragmentation and wrong about what
+            # the low cluster meant. It is not one view learned twice.
+            #
+            # THE PROOF, 4 SEP 2026, and it is two JPEGs.
+            #   frames/talamati/20260903/183253_p41_blob0538_f0.38.jpg is the
+            #   reservoir wall, with a confirmed elephant standing at it.
+            #   frames/talamati/20260903/183305_p41_blob0621_f0.31.jpg, logged
+            #   TWELVE SECONDS LATER UNDER THE SAME PRESET ID, is a marula
+            #   trunk over open grass with no wall anywhere in the frame.
+            #
+            # Not a pan. Two camera positions. `bright` separates them over all
+            # 291 p41 rows with a clean empty band:
+            #   reservoir wall     96 rows (33%)  bright 107-118
+            #   tree over grass   195 rows (67%)  bright  84- 96
+            #   in the 98-105 band: FOUR rows out of 291.
+            # The five frames reviewed by eye land exactly where the split
+            # predicts: 110.1, 109.1, 114.3 wall; 94.7, 94.0 grass.
+            #
+            # Both views sit at dist 13.6 and 13.3. That is the confirmation,
+            # not a puzzle: one preset holds ONE background array, so every
+            # frame of either view is diffed against a blend of both and all of
+            # them are wrong by the same amount. It also explains why a 35
+            # minute elephant visit produced one usable frame: only a third of
+            # "p41" is pointed at the wall at all.
+            #
+            # WHY 11 SPLITS IT, AND THIS IS ARITHMETIC, NOT A FORECAST.
+            # The `dist` column IS the signature match distance: watch.py sets
+            # m["dist"] = bd, and bd is what SIG_TOL gates on. So the log
+            # already says what a different SIG_TOL would have done.
+            #   p41: 69.8% of its 291 rows have dist > 11 (min 0.2, max 21.1).
+            # Every one of those forks a new preset at SIG_TOL 11.
+            #
+            # WHAT IT COSTS, measured on 1,638 Talamati rows of 3-4 Sep:
+            #   23.2% of all Talamati rows have dist > 11 and will fork on the
+            #   first pass. Compare the two cameras already at 11 over the same
+            #   29 hours: Nossob 0.0% above 11, Satara 2.6%. Those are the
+            #   converged end states this is aiming at.
+            #
+            # WHAT IT BUYS. Talamati's dead band (6 < dist <= SIG_TOL: admitted
+            # to a preset, refused judgement by DIST_MAX) is 41% of daylight
+            # rows and 46% of night rows today. At Satara the same change took
+            # the dead band from 90% of daylight rows to 11%.
+            #
+            # THE RISK THAT DID NOT EXIST AT SATARA. Satara had no confirmed
+            # animals to lose. Talamati has a confirmed night elephant and
+            # eight confirmed daylight species. The expected direction is
+            # recovery, because animals.md already attributes the 30 Aug
+            # elephant miss to "SIG_TOL 25 lumps several framings into one
+            # preset and the background never converges". It is still a change
+            # to a camera with something at stake.
+            #
+            # THE SECOND RISK, AND IT IS WHY PRESET_CAP MOVED. Forking 23% of
+            # frames creates presets fast, and every new preset is deaf for
+            # MIN_N frames. Five species have already been lost that way (see
+            # webcammonitoringnotes20260904c.md section 5). MIN_N is NOT being
+            # touched in the same bundle: one decision change at a time, and
+            # the MIN_N question needs its own measurement. But watch.py's
+            # PRESET_CAP goes 120 -> 200 in this bundle as insurance, so the
+            # experiment cannot be confounded by eviction of load-bearing
+            # presets halfway through.
+            #
+            # HOW TO READ TOMORROW'S LOG. Three numbers, in this order:
+            #   1. share of rows with dist > 11. Falling toward Satara's 2.6%
+            #      means it worked. Staying near 23% means the views are not
+            #      separable by this fingerprint and `bright` is the next idea
+            #      (see the note at the end of this dict).
+            #   2. p41. It should stop existing as a single busy preset. If two
+            #      new presets appear with bright clusters at ~110 and ~93 and
+            #      each converges to dist < 3, that is the whole hypothesis
+            #      confirmed.
+            #   3. distinct preset ids per day, against PRESET_CAP 200.
+            "SIG_TOL":   11,
             "PIX_THR":   24,     # the value all the numbers above were measured at
             "MIN_N":     6,      # backgrounds converge slower here
             "DOM_MIN":   0.0,
@@ -313,8 +387,41 @@ CAMERAS = [
             # up to 25 apart into one preset, and a frame 15-25 from its own
             # background is not that view. All 7 daylight hits of 30-31 Aug sat
             # above dist 6 and none contained an animal.
+            #
+            # DIST_MAX IS DELIBERATELY NOT CHANGED IN THIS BUNDLE, and the
+            # reason is a measurement, not caution. Raising Talamati daylight
+            # DIST_MAX to 8.0 recovers NOTHING: the one Talamati daylight row
+            # whose box is on the animals (03 10:22:08, four elephants at the
+            # wall, blob 242) fails DIST_MAX 6.0 at 7.6 AND NB_MAX 25 at 38 AND
+            # FILL_CMP 0.44 at 0.28. Recall at this camera in daylight costs
+            # three gates or it costs nothing, and three gates takes hits from
+            # 75/day to 181/day with every hit archived at full resolution.
+            # That waits for the identify job. See notes 20260904c section 9.4.
             "DIST_MAX":  6.0,
             "NB_MAX":    25,
+            # THE ALTERNATIVE THAT WAS MEASURED AND REJECTED, 4 Sep 2026.
+            #
+            # `bright` separates p41's two views perfectly and the preset
+            # fingerprint cannot see it, because analyse() subtracts the mean
+            # before building it (watch.py: `s = s - s.mean()`). Adding a
+            # brightness term to the match distance looked like the root-cause
+            # fix. IT IS NOT, and the reason is worth keeping so that nobody
+            # proposes it again.
+            #
+            # Within-preset `bright` spread (p10 to p90) on presets with 40+
+            # rows, 3-4 Sep, is far LARGER than the ~15 that separates p41's
+            # two views:
+            #   nossob daylight   p83 69.7, p80 69.6, p65 65.5, p39 65.4
+            #   talamati daylight p25 57.2, p0 49.2, p98 48.0, p90 47.2
+            #   median across all presets: nossob 30.6, talamati 26.3
+            # A single framing swings 30 to 70 grey levels between dawn and
+            # dusk. Any brightness term large enough to split p41 would fork a
+            # new preset every hour of every day on every camera.
+            #
+            # At NIGHT it is tight (nossob p12 3.3, p13 6.6; satara p4 6.5,
+            # p30 3.7) so a NIGHT-ONLY brightness term is not dead. It is also
+            # not needed unless SIG_TOL 11 fails, and it must not be tried in
+            # the same bundle as this one.
         },
 
         # NOW MEASURED, 226 night frames on 30-31 Aug 2026. Two findings.
