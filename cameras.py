@@ -381,24 +381,116 @@ CAMERAS = [
             "BLOB_MIN":  60,     # below this it is always vegetation
             "BLOB_MAX":  900,
             "ASP_MAX":   2.2,
-            "FILL_CMP":  0.44,   # compact naturals measured 0.29 and 0.38
+            # 0.44 -> 0.26 ON 4 SEP 2026 EVENING, TOGETHER WITH NB_MAX BELOW.
+            # THE TWO ARE ONE CHANGE AND MUST BE READ TOGETHER. Jeremy
+            # authorised an explicit exception to the one-change-per-session
+            # rule for this pair on 4 Sep 2026.
+            #
+            # WHY THEY ARE INSEPARABLE, measured on the 650 Satara daylight
+            # rows of 4 Sep against the two frames whose box is demonstrably on
+            # a bird (the same scene physics applies here):
+            #     live                    2 hits / 650   0 of 2 birds
+            #     NB_MAX 250 alone        6 hits / 650   0 of 2 birds
+            #     FILL_CMP 0.26 alone     2 hits / 650   0 of 2 birds
+            #     BOTH                   52 hits / 650   2 of 2 birds
+            # Each gate alone catches nothing and moves volume by at most four
+            # frames, so there is no clean single-gate measurement to confound.
+            #
+            # WHY 0.26 AND NOT HIGHER. The two measured Satara daylight bird
+            # rows sit at fill 0.28 and 0.38; the Talamati daylight elephant of
+            # 03 10:22:08 sits at 0.28. 0.26 clears 0.28 by two hundredths.
+            #
+            # THE PRICE, STATED BEFORE IT IS PAID. Talamati daylight goes from
+            # 6 hits in 700 rows (0.9%) to 85 (12.1%); Satara from 2 in 650
+            # (0.3%) to 52 (8.0%). About 137 extra hits a day across the two
+            # cameras, every one archived, order 20 MB a day into git history.
+            # Almost none of them will be animals. That volume is what stage 2
+            # is for: SpeciesNet returned `blank` on all ten Talamati confirmed
+            # empty night hits at max confidence 0.13, and scored 85/89 on real
+            # animals.
+            #
+            # IT LEAKS TWO OF THE THIRTEEN TALAMATI DAYLIGHT NATURALS in
+            # selftest.py (blob 147 at fill 0.38 and blob 101 at fill 0.29).
+            # That is the measured cost, not a surprise, and selftest.py now
+            # carries a NATURAL_CAP of 2 here saying so.
+            #
+            # NIGHT MUST NOT COPY THIS. thr_night below keeps FILL_CMP 0.36.
+            "FILL_CMP":  0.26,
             "FILL_WIDE": 0.72,   # smear naturals measured 0.36-0.65
             # SIG_TOL 25 stopped the fragmentation but it also lumps framings
             # up to 25 apart into one preset, and a frame 15-25 from its own
             # background is not that view. All 7 daylight hits of 30-31 Aug sat
             # above dist 6 and none contained an animal.
             #
-            # DIST_MAX IS DELIBERATELY NOT CHANGED IN THIS BUNDLE, and the
-            # reason is a measurement, not caution. Raising Talamati daylight
-            # DIST_MAX to 8.0 recovers NOTHING: the one Talamati daylight row
-            # whose box is on the animals (03 10:22:08, four elephants at the
-            # wall, blob 242) fails DIST_MAX 6.0 at 7.6 AND NB_MAX 25 at 38 AND
-            # FILL_CMP 0.44 at 0.28. Recall at this camera in daylight costs
-            # three gates or it costs nothing, and three gates takes hits from
-            # 75/day to 181/day with every hit archived at full resolution.
-            # That waits for the identify job. See notes 20260904c section 9.4.
-            "DIST_MAX":  6.0,
-            "NB_MAX":    25,
+            # 6.0 -> 8.0 AT TALAMATI DAYLIGHT, 4 SEP 2026 LATE EVENING.
+            #
+            # THIS BLOCK USED TO SAY DIST_MAX 8.0 RECOVERS NOTHING. That was
+            # true and it is no longer true, and the reason is worth reading
+            # before anyone reverts it. The claim rested on the one Talamati
+            # daylight row whose box is on the animals (03 10:22:08, four
+            # elephants at the reservoir wall including a calf, blob 242,
+            # 34x25, cx 0.612, cy 0.568, n=36) failing THREE gates at once:
+            # DIST_MAX 6.0 against 7.6, NB_MAX 25 against 38, and FILL_CMP
+            # 0.44 against fill 0.28. Opening any one of the three recovered
+            # nothing, so each in turn looked worthless.
+            #
+            # NB_MAX AND FILL_CMP WERE OPENED EARLIER THIS EVENING. DIST_MAX
+            # 6.0 is now the ONLY gate that row fails, and 7.6 < 8.0 clears it
+            # by 0.4. It goes from a three-gate miss to a single-gate miss to a
+            # detection, and it is the only Talamati daylight row in the whole
+            # project that measures an animal.
+            #
+            # 8.0 AND NOT HIGHER. The Egyptian goose of 03 06:52:13 sits at
+            # dist 8.1 and is still missed, deliberately: that row is a
+            # whole-frame blob (bw 96) on a preset's third frame ever, so it
+            # measures nothing and recovering it would be recovering noise.
+            # 8.0 is also the value already live at Nossob night, so the file
+            # gains no new number.
+            #
+            # WHAT IT COSTS, AND THIS IS THE HONEST PART. Measured 4 Sep under
+            # the OLD NB_MAX 25 / FILL_CMP 0.44, DIST_MAX 8.0 added about 20
+            # Talamati and 4 Satara hits a day. That measurement no longer
+            # applies, because the two gates in front of it are now open, and
+            # the cost under the new config HAS NOT BEEN MEASURED. It will be
+            # larger. Expect it in tomorrow's volume read.
+            #
+            # selftest.py CANNOT PRICE THIS CHANGE AND THAT IS NOT A BUG IN
+            # THE ARGUMENT, IT IS A LIMIT OF THE HARNESS. Every one of the 13
+            # Talamati daylight NATURAL rows is scored at dist 0.0, because
+            # they predate the dist column. No value of DIST_MAX can ever make
+            # one of them leak. The leak count staying at 2 across this change
+            # is therefore not evidence of anything.
+            #
+            # IT REMAINS DECOMPOSABLE FROM TOMORROW'S LOG. is_hit has no side
+            # effects and the background update at the end of handle() runs
+            # unconditionally, so DIST_MAX changes which rows are flagged and
+            # nothing else. Replaying tomorrow's CSV at 6.0 and at 8.0 gives
+            # the exact hit count attributable to this gate alone, the same way
+            # 2,978 rows were replayed on 4 Sep with zero disagreement against
+            # the logged flag.
+            "DIST_MAX":  8.0,
+            # 25 -> 250 ON 4 SEP 2026 EVENING. The second half of the FILL_CMP
+            # change above; neither half works alone.
+            #
+            # WHY NB_MAX 25 HAD TO GO. It is the FIRST gate on every large
+            # Kruger daylight animal, before size, shape or position is
+            # consulted, and it fires on a converged background: the Satara
+            # hyena group at nblobs 189 with dist 3.6, the warthog boar at 140,
+            # the banded mongoose at 88 and 164, the wildebeest-type antelope
+            # at 122, this camera's own four elephants at 38. A dozen birds
+            # moving independently on the rim is a dozen blobs before the
+            # vegetation is counted, and seven forum frames diffed against a
+            # median background of their own view (dist 4.8-5.4, so the
+            # mismatch is removed by construction) still score nblobs 101 to
+            # 140. SIG_TOL will not help this. It is the scene.
+            #
+            # WHY 250 AND NOT 200. The one Satara daylight row whose box is
+            # demonstrably on a bird reads nblobs 217. At 200 that row is lost.
+            #
+            # WHAT THIS IS NOT. It is not a claim that fragmentation is
+            # harmless. It is a decision to move the empty-frame filter from
+            # stage 1 geometry to stage 2 identification, taken on 4 Sep 2026.
+            "NB_MAX":    250,
             # THE ALTERNATIVE THAT WAS MEASURED AND REJECTED, 4 Sep 2026.
             #
             # `bright` separates p41's two views perfectly and the preset
@@ -475,10 +567,20 @@ CAMERAS = [
             # insect near the lens, largest blob 81 blocks. 90 clears them.
             #
             # This is a stopgap and it is a guess, calibrated only against
-            # noise. Talamati has produced confirmed DAYLIGHT animals (zebra,
-            # wildebeest, an elephant herd, 31 Aug) but still no confirmed
-            # NIGHT animal. It makes the night alarm big-animal-only. The CSV
-            # and COLLECT=top keep running regardless.
+            # noise. It makes the night alarm big-animal-only. The CSV and
+            # COLLECT=top keep running regardless.
+            #
+            # CORRECTED 4 SEP 2026. This paragraph used to say that Talamati
+            # had produced confirmed DAYLIGHT animals but STILL NO CONFIRMED
+            # NIGHT ANIMAL. That is false. TWO CONFIRMED NIGHT ELEPHANTS exist:
+            # 30 Aug 18:31:50 and 18:32:14 UTC on p9, and 3 Sep 18:32:53 UTC on
+            # p41 (domed head, ear held out, trunk over the rim, tusk visible,
+            # about 15 x 10 blocks and 90-110 filled, so it CLEARS BLOB_MIN 90).
+            # Not one of the three rows measures its elephant: every logged box
+            # is an illumination band or a pool of floodlit ground with the
+            # animal outside or inside it by accident. So the floor here is
+            # still uncalibrated against an animal, which is the original
+            # point, but the premise "there has never been one" is retired.
             #
             # Re-checked 1 Sep 2026 against a second full night: 8 hits in 467
             # frames, all 8 archived and looked at, all 8 out-of-focus insects
@@ -592,9 +694,19 @@ CAMERAS = [
             # written here on 2 Sep ("if the preset count settles low ... come
             # down toward Nossob's 11") is met.
             #
-            # WHAT IT COSTS, HONESTLY. Nothing measurable, because there is
-            # nothing to lose: Satara has scored 2 hits in its whole life and
-            # both are confirmed false positives. Opening NB_MAX changes
+            # WHAT IT COSTS, HONESTLY. Nothing measurable at the time.
+            #
+            # CORRECTED 4 SEP 2026. This paragraph used to say that Satara had
+            # scored two hits in its whole life and that BOTH WERE CONFIRMED
+            # FALSE POSITIVES. That is false and it was false when written.
+            # BOTH ARE ANIMALS: an AFRICAN WILD CAT at 04 01:25:18 UTC (p4,
+            # blob 109, box on the reflection) and a SPOTTED HYENA at
+            # 04 02:03:18 UTC (p4, blob 359, box on part of the animal and all
+            # of its reflection). Neither row measures its animal cleanly, so
+            # neither may tune anything, but the camera is not sterile and no
+            # argument here may lean on "nothing to lose" again.
+            #
+            # Opening NB_MAX changes
             # nothing here either - replayed on the 181 daylight rows, NB_MAX
             # 25/40/60/80/120/200 all give 0 hits, because DIST_MAX rejects 158
             # of 181 first. No threshold in this block can do anything until
@@ -633,12 +745,78 @@ CAMERAS = [
             "BLOB_MIN":  60,
             "BLOB_MAX":  900,
             "ASP_MAX":   2.2,
-            "FILL_CMP":  0.44,
+            # 0.44 -> 0.26 AND 25 -> 250, 4 SEP 2026 EVENING. ONE CHANGE IN TWO
+            # KEYS, authorised by Jeremy as an explicit exception to the
+            # one-change-per-session rule.
+            #
+            # THIS IS THE CAMERA THE PAIR WAS MEASURED ON. 650 Satara daylight
+            # rows of 4 Sep, scored against the two frames whose box is
+            # demonstrably on a bird (04 06:49:01 p12, blob 116, fill 0.28,
+            # nblobs 217; 04 06:21:10 p23, blob 112, fill 0.38, nblobs 200):
+            #     live                    2 hits / 650   0 of 2 birds
+            #     NB_MAX 250 alone        6 hits / 650   0 of 2 birds
+            #     FILL_CMP 0.26 alone     2 hits / 650   0 of 2 birds
+            #     BOTH                   52 hits / 650   2 of 2 birds
+            # Each gate alone catches nothing. There is no signal in either
+            # half to confound, which is the whole justification for taking
+            # both at once.
+            #
+            # 250, NOT 200: the 06:49:01 bird row reads nblobs 217.
+            # 0.26, NOT HIGHER: that same row reads fill 0.28.
+            #
+            # THE PRICE. 0.3% of daylight rows to 8.0%, about 52 hits a day at
+            # this camera, every one archived. Almost none will be animals.
+            # Filtering them is stage 2's job, not this file's.
+            #
+            # IT ALSO RECOVERS A KNOWN MISS: the three spotted hyenas of
+            # 03 09:53:04 (p6, blob 239, fill 0.27, dom 0.21, dist 3.6, nblobs
+            # 189, box on the adult) now pass every gate. They are promoted out
+            # of KNOWN_MISSES into REAL_ANIMAL in selftest.py, so this pair of
+            # values is now load-bearing on three Satara daylight animals.
+            #
+            # WHAT IS NOW THE BINDING GATE HERE, measured the same evening and
+            # NOT acted on tonight: FILL_WIDE 0.72. The warthog boar of
+            # 03 14:40:58 (aspect 2.8, fill 0.31) and the wildebeest-type
+            # antelope of 03 13:01:28 (aspect 4.1, fill 0.29) both fall to the
+            # wide branch and fail there. BLOB_MAX 900 is the binding gate on
+            # the banded mongoose of 03 15:29:51 at blob 1487. Both are real
+            # and both wait for the volume read of 5 Sep.
+            #
+            # NIGHT DOES NOT COPY THIS. thr_night below sets its own.
+            "FILL_CMP":  0.26,
             "FILL_WIDE": 0.72,
-            "DIST_MAX":  6.0,
-            "NB_MAX":    25,
+            # 6.0 -> 8.0, 4 SEP 2026 LATE EVENING, IN STEP WITH TALAMATI.
+            # Both Kruger cameras run the same daylight DIST_MAX, as they have
+            # since Satara was added, and the row that forced the change is at
+            # Talamati (03 10:22:08, four elephants, dist 7.6, now a
+            # single-gate miss once NB_MAX and FILL_CMP opened).
+            #
+            # WHAT IT DOES HERE, HONESTLY: ONE HARNESS RECOVERY THAT IS NOT A
+            # FIELD RECOVERY. The lying spotted hyena of 03 09:54:05 (p15, blob
+            # 868, 54x31, fill 0.52, box on the animal, the clearest hyena
+            # image in the project) sits at dist 6.5 and now clears every
+            # geometric gate. IT IS STILL LOST IN THE FIELD, to MIN_N: preset
+            # 15 was on its SECOND frame ever. It is deliberately NOT promoted
+            # to REAL_ANIMAL in selftest.py for that reason, because the
+            # harness scores every row at n=99 and would report a detection
+            # that the detector would not make.
+            #
+            # NONE of the three confirmed Satara daylight animals in
+            # REAL_ANIMAL needs this: they sit at dist 3.2, 4.5 and 3.6. It
+            # buys volume here, not recall, and the volume is unmeasured under
+            # the new NB_MAX and FILL_CMP. Under the old ones it was about 4
+            # extra Satara hits a day.
+            "DIST_MAX":  8.0,
+            "NB_MAX":    250,
         },
 
+        # NIGHT IS UNTOUCHED BY THE 4 SEP EVENING BUNDLE, on purpose. Satara
+        # night is not stopped by NB_MAX or by the fill floor: it is stopped by
+        # PIX_THR 26 against a low-contrast IR scene. Night px median is 27 of
+        # about 75,000 visible pixels and blob is exactly 0 on 57.4% of night
+        # rows, and the 03 22:49:03 quadruped (visible to the eye at about
+        # 9.6 x 6.4 blocks) logs px 49 and blob 2. No value of NB_MAX,
+        # FILL_CMP, BLOB_MIN, DIST_MAX or DOM_MIN reaches that frame.
         "thr_night": {
             "PIX_THR":   26,
             "BLOB_MIN":  90,

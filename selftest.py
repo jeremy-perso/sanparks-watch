@@ -72,6 +72,27 @@ NATURAL = {
     ],
 }
 
+# NATURAL used to assert zero leaks everywhere, with no way to say "this leak
+# is the measured price of a change we took on purpose". ADDED 4 SEP 2026
+# EVENING, because the Kruger daylight bundle leaks two of the thirteen
+# Talamati daylight naturals and a suite that simply goes red says nothing
+# about whether that was two or twelve.
+#
+# THE RULE FOR THIS DICT IS THE SAME AS FOR FP_MAX. A cap is a measurement
+# written down, never a way to make a failure go away. Raise it only with the
+# leaked rows named and the reason stated, and never raise it in the same
+# session as the change that caused the leak without saying so out loud.
+#
+# talamati day 2: FILL_CMP 0.44 -> 0.26 leaks blob 147 (24x16, fill 0.38) and
+# blob 101 (22x16, fill 0.29). Both are real Talamati daylight frames with no
+# animal in them, measured 30 Aug 2026 13:39-14:07 UTC. They are exactly the
+# frames the Talamati elephant of 03 10:22:08 cannot be separated from: it
+# needs fill 0.28 and the nearest empty sits at 0.29. There is no gap and no
+# value of FILL_CMP that takes one and not the other.
+#
+# EVERYTHING ELSE IS 0 AND MUST STAY 0.
+NATURAL_CAP = {("talamati", "day"): 2}
+
 # --- CONFIRMED, 30 Aug - 2 Sep 2026: real frames, eyes on the JPEG -----------
 # Nossob after dark. Every row here was archived, looked at, and either does or
 # does not contain an animal. This is the first non-synthetic sensitivity test
@@ -253,7 +274,69 @@ REAL_ANIMAL = {
 # same session. Take DIST_MAX back below 7.2 and this drops to 50 and FAILS.
 # That is deliberate: the threshold and the animal that justifies it are now
 # tied together in the test.
-REAL_MIN = {("nossob", "night"): 51, ("nossob", "day"): 2}
+# --- SATARA DAYLIGHT: THE FIRST KRUGER DAYLIGHT REAL_ANIMAL ROWS -------------
+# ADDED 4 SEP 2026 EVENING. Until tonight this harness had NO Kruger daylight
+# REAL_ANIMAL row at all, which was measured the same day by sweeping NB_MAX at
+# both Kruger cameras from 25 to 200 and watching every detection and leak
+# count stay identical at every value. It could reject a Kruger daylight change
+# and it could not reward one, so it would have certified the 4 Sep evening
+# bundle blind.
+#
+# ALL THREE ROWS ARE SECTION A: the logged blob box is demonstrably on the
+# animal, checked by eye with the box drawn on the 900x506 archived JPEG. Rows
+# where the box lands elsewhere stay in KNOWN_MISSES and vote on nothing.
+#
+# ALL THREE WERE MISSED BY THE CONFIG OF THIS MORNING, on NB_MAX 25 at nblobs
+# 217, 200 and 189. If a future edit takes this count below 3, it has closed
+# NB_MAX or FILL_CMP back down and it should say so.
+REAL_ANIMAL[("satara", "day")] = [
+    # Single dark glossy thrush-sized bird at the near rim with its reflection
+    # as one connected region; scale reference is the channel width. THE
+    # HIGHEST nblobs OF ANY CONFIRMED ANIMAL ANYWHERE, 217, which is why
+    # NB_MAX is 250 and not 200. bact 0.43 against a Satara daylight
+    # population median of about 0.28: a confirmed animal standing at the
+    # water is MORE restless than the average frame, which is why no daylight
+    # bact or ACT_MAX gate can ever be used at this camera.
+    ("04 06:49:01Z p12, glossy bird + reflection at the rim, BOX ON IT",
+     M(116, 20, 21, 0.28, 0.09, 3.2, 217, 0.0, 0.43, 0.0)),
+    # Group of 8-10 small birds on the left rim, box on the group.
+    ("04 06:21:10Z p23, 8-10 small birds on the rim, BOX ON THEM",
+     M(112, 21, 14, 0.38, 0.15, 4.5, 200, 0.0, 0.212, 0.0)),
+    # PROMOTED OUT OF KNOWN_MISSES 4 SEP 2026 EVENING under the promotion rule
+    # at the head of that dict: it is detected by the live config, so it is a
+    # floor worth guarding. Spotted hyena, adult standing in the channel with
+    # two juveniles; the box covers the adult plus a lot of channel.
+    ("03 09:53:04Z p6, 3 spotted hyenas, BOX ON THE ADULT",
+     M(239, 44, 20, 0.27, 0.21, 3.6, 189, 0.299, 0.261, 0.08)),
+]
+
+# --- TALAMATI DAYLIGHT: THE ONLY ROW THIS CAMERA HAS THAT MEASURES AN ANIMAL
+# ADDED 4 SEP 2026 LATE EVENING, promoted out of KNOWN_MISSES.
+#
+# Four elephants at the reservoir wall including a calf. The box covers the
+# drinking adult, the calf and the walking animal; it is not tight, it contains
+# wall as well as elephant, but it is on the animals. blob 242 clears BLOB_MIN
+# 60 four times over and n=36 is well past MIN_N, so this is a field detection
+# and not a harness artefact.
+#
+# IT IS A THREE-GATE RECOVERY AND ALL THREE ARE LOAD-BEARING ON IT. dist 7.6
+# needs DIST_MAX 8.0, nblobs 38 needs NB_MAX above 38, fill 0.28 needs FILL_CMP
+# below 0.28. Close any one of the three and this drops to 0/1 and the suite
+# goes red. That is deliberate: the threshold and the animal that justifies it
+# are tied together in the test.
+REAL_ANIMAL[("talamati", "day")] = [
+    ("03 10:22:08Z p90, 4 elephants at the wall, BOX ON THEM",
+     M(242, 34, 25, 0.28, 0.60, 7.6, 38, 0.568, 0.356, 0.13)),
+]
+
+# satara day 3 ADDED 4 SEP 2026 EVENING, and it is a hard floor: all three rows
+# pass under the bundle and all three failed before it. 0/3 before, 3/3 after.
+#
+# talamati day 1 ADDED 4 SEP 2026 LATE EVENING with DIST_MAX 8.0. 0/1 before
+# tonight, 1/1 after. It is the first Talamati recall floor of any kind, in
+# either mode, that this file has ever carried.
+REAL_MIN = {("nossob", "night"): 51, ("nossob", "day"): 2,
+            ("satara", "day"): 3, ("talamati", "day"): 1}
 
 # --- CONFIRMED empty: real frames, eyes on the JPEG, nothing in them ---------
 # The four Nossob dawn hits of 31 Aug (sun rising while the IR-cut filter swaps
@@ -467,6 +550,36 @@ CONFIRMED_FP = {
 FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 43,
           ("talamati", "night"): 8, ("satara", "night"): 0}
 
+# THE ONE THING THE 4 SEP EVENING BUNDLE SHIPPED WITHOUT, AND IT IS A GAP, NOT
+# AN OVERSIGHT. There is still NO ("satara", "day") negative set in this file.
+#
+# Three archive frames are known to fire under the new config with the box on
+# vegetation, all measured 4 Sep 2026 on the 24 Satara daylight frames of
+# 3 September:
+#   03 08:37:09Z p0  box on a fallen log and green scrub below a line of birds
+#   03 10:25:08Z p0  box on a static patch of grass and scrub at the left edge
+#   03 10:25:20Z p0  the same patch twelve seconds later, nothing inside it
+# They are the shape of the false positives this bundle buys, and they belong
+# here with a cap of 3 (they are there to MEASURE the cost, not to block the
+# change, so a cap of 0 would be dishonest about a decision already taken).
+#
+# THEY ARE NOT IN THIS FILE BECAUSE THEIR blob, bw, bh, fill, dom AND nblobs
+# ARE NOT WRITTEN DOWN ANYWHERE. They came out of a JPEG replay, and the
+# session that ran it recorded the verdict and not the row. Inventing plausible
+# numbers to fill the shape would put three guesses into the only file in the
+# project that is allowed to reject a configuration.
+#
+# TO CLOSE THIS: pull those three rows out of logs/satara/20260903.csv by UTC
+# timestamp and paste them in with FP_MAX[("satara", "day")] = 3. That is a
+# five-minute job and it is worth doing before the 5 Sep volume read, because
+# until it is done this harness can reward a Kruger daylight change (three
+# REAL_ANIMAL rows, added tonight) and still cannot price one.
+#
+# NOTE ON REPLAY, so nobody closes this the wrong way: a positives-only archive
+# builds its background out of other animal frames, so replayed nblobs runs
+# about DOUBLE the live value and replayed dom about 0.09 low. Take these rows
+# from the CSV, never from a re-run over the JPEGs.
+
 # --- what a real daylight frame actually looks like --------------------------
 # THE BUG THIS FIXES, FOUND 2 SEP 2026 AND CORRECTED 3 SEP.
 #
@@ -556,11 +669,30 @@ EXPECT_MIN = {
 # so raising these is the whole point of the daylight work. When NB_MAX and
 # DIST_MAX are opened for daylight, this is the dict that moves, and the
 # before/after pair here is the measurement to report.
+#
+# RAISED FOR TALAMATI, 4 SEP 2026 LATE EVENING, AND THIS IS THE FIRST TIME ANY
+# NUMBER IN THIS DICT HAS MOVED OFF ZERO. Elephant 0 -> 5 of 5, gemsbok 0 -> 2
+# of 5. The mechanism is exactly the one the block above describes: Talamati's
+# real daylight median dist is 6.8, which used to be rejected by DIST_MAX 6.0
+# before the target's geometry was ever consulted, and its median nblobs of 55
+# used to be rejected by NB_MAX 25. At DIST_MAX 8.0 and NB_MAX 250 the frame
+# now reaches the size, dominance, aspect and fill gates, and the elephant-sized
+# target clears all of them.
+#
+# READ THIS FOR WHAT IT IS. It says a Talamati daylight frame can now be judged
+# at all, which was not true for the first six days of this project. It does NOT
+# say the detector will catch an elephant, because these are synthetic targets
+# pasted into real frames and the dist and nblobs are population medians
+# standing in for each frame's own value.
+#
+# NOSSOB STAYS AT ZERO and must. Its NB_MAX is still 25 against a daylight
+# median of 38, so nothing about a Nossob daylight target's geometry is
+# consulted either. That is the untouched control in this bundle.
 EXPECT_FIELD = {
     ("nossob", "day", "gemsbok 200x140"):   0,
     ("nossob", "day", "jackal 80x55"):      0,
-    ("talamati", "day", "elephant 400x300"): 0,
-    ("talamati", "day", "gemsbok 200x140"):  0,
+    ("talamati", "day", "elephant 400x300"): 5,
+    ("talamati", "day", "gemsbok 200x140"):  2,
 }
 
 
@@ -588,15 +720,22 @@ EXPECT_FIELD = {
 # THE PROMOTION RULE. A row moves out of here into REAL_ANIMAL the moment it
 # is detected by the live config. If it is detected, it is a floor worth
 # guarding; if it is missed, it is a target. Nothing stays here once it passes.
+# ROWS THAT ARE CAUGHT HERE AND MUST NOT BE PROMOTED, with the reason. A row
+# in this set is caught by the geometric gates and still missed by the live
+# detector for a reason this harness cannot express, so promoting it would put
+# a detection into REAL_MIN that the field cannot deliver.
+NO_PROMOTE = {
+    "03 09:54:05Z p15, spotted hyena lying, CLEARS DIST_MAX 8.0 but MIN_N n=2":
+        "MIN_N 6: preset 15 was on its second frame ever, and every row in this "
+        "file is scored at n=99",
+}
+
 KNOWN_MISSES = {
     ("talamati", "day"): [
-        # THE ONE TALAMATI DAYLIGHT ROW WHOSE BOX IS ON THE ANIMALS. Four
-        # elephants at the reservoir wall including a calf; the box covers the
-        # drinking adult, the calf and the walking animal. blob 242 clears
-        # BLOB_MIN 60 four times over. It fails DIST_MAX at 7.6, NB_MAX at 38
-        # and FILL_CMP at 0.28, which is why no single-gate change recovers it.
-        ("03 10:22:08Z p90, 4 elephants at the wall, BOX ON THEM",
-         M(242, 34, 25, 0.28, 0.60, 7.6, 38, 0.568, 0.356, 0.13)),
+        # THE 03 10:22:08Z FOUR-ELEPHANT ROW WAS HERE UNTIL 4 SEP 2026 LATE
+        # EVENING. NB_MAX 250, FILL_CMP 0.26 and DIST_MAX 8.0 between them
+        # clear all three of the gates it failed, so it is PROMOTED into
+        # REAL_ANIMAL under the rule above. Do not re-add it here.
         # Male lion with a full mane, in daylight. New for this camera. He is
         # about 6.8 x 5.1 blocks, roughly 20-25 filled, against BLOB_MIN 60.
         # THE FLOOR IS THE BINDING GATE HERE and no gate change touches it: the
@@ -621,13 +760,22 @@ KNOWN_MISSES = {
          M(538, 71, 20, 0.38, 0.50, 18.9, 82, 0.822, 0.360, 0.30)),
     ],
     ("satara", "day"): [
-        # Spotted hyena, adult standing in the channel with two juveniles. The
-        # box covers the adult. ~9 x 14 blocks, clears BLOB_MIN 60. NB_MAX 189.
-        ("03 09:53:04Z p6, 3 spotted hyenas, box on the adult",
-         M(239, 44, 20, 0.27, 0.21, 3.6, 189, 0.299, 0.261, 0.08)),
+        # THE 03 09:53:04Z THREE-HYENA ROW WAS HERE UNTIL 4 SEP 2026 EVENING.
+        # It is now caught by the live config and has been PROMOTED into
+        # REAL_ANIMAL under the promotion rule above. Do not re-add it here.
+        #
         # The clearest hyena image in the project: lying chest-deep, head on
-        # the rim, drinking. The box covers it. Lost to MIN_N at n=2.
-        ("03 09:54:05Z p15, spotted hyena lying, MIN_N n=2",
+        # the rim, drinking. The box covers it.
+        #
+        # DELIBERATELY NOT PROMOTED, 4 SEP 2026 LATE EVENING, AND THIS IS AN
+        # EXPLICIT EXCEPTION TO THE PROMOTION RULE ABOVE. At DIST_MAX 8.0 its
+        # dist of 6.5 clears, and this harness scores every row at n=99, so it
+        # now reports as caught. THE DETECTOR WOULD STILL MISS IT: preset 15
+        # was on its SECOND frame ever and MIN_N 6 rejects it before any
+        # geometry is consulted. Promoting it would put a detection in
+        # REAL_MIN that the field cannot deliver. It stays here until either
+        # MIN_N moves or the harness learns to score a row at its own n.
+        ("03 09:54:05Z p15, spotted hyena lying, CLEARS DIST_MAX 8.0 but MIN_N n=2",
          M(868, 54, 31, 0.52, 0.58, 6.5, 48, 0.278, 0.060, 0.07)),
         # Warthog boar, close and side on, ~24 x 14 blocks. Five times the
         # floor. NB_MAX 140.
@@ -689,12 +837,13 @@ def main():
     print("false positives on real empty-waterhole frames")
     for (cam, mode), rows in NATURAL.items():
         fp = [m for m in rows if is_hit(m, BIG_N, thr_for(cam, mode))]
-        flag = "FAIL" if fp else "ok  "
-        print(f"  {flag} {cam:9s} {mode:5s} {len(fp)}/{len(rows)}")
+        cap = NATURAL_CAP.get((cam, mode), 0)
+        flag = "FAIL" if len(fp) > cap else "ok  "
+        print(f"  {flag} {cam:9s} {mode:5s} {len(fp)}/{len(rows)} (cap {cap})")
         for m in fp:
             print(f"         leaked: blob{m['blob']} {m['bw']}x{m['bh']} "
                   f"fill={m['fill']} dom={m['dom']}")
-        bad += len(fp)
+        bad += max(0, len(fp) - cap)
 
     print("\ndetection of injected targets")
     print("  GEOMETRY = dist 0, nblobs 1. FIELD = the camera's real daylight")
@@ -734,7 +883,11 @@ def main():
             if is_hit(m, BIG_N, t):
                 caught += 1
                 print(f"       NOW CAUGHT  {cam:9s} {mode:5s} {label}")
-                print(f"                   -> PROMOTE THIS ROW TO REAL_ANIMAL")
+                if label in NO_PROMOTE:
+                    print(f"                   -> held back on purpose: "
+                          f"{NO_PROMOTE[label]}")
+                else:
+                    print(f"                   -> PROMOTE THIS ROW TO REAL_ANIMAL")
             else:
                 print(f"       missed      {cam:9s} {mode:5s} {label}")
                 print(f"                   first gate: {first_gate(m, t)}")
