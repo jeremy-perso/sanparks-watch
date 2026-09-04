@@ -16,17 +16,44 @@ on:
     # widening only one of them does nothing.
     #
     # A THIRD CAMERA, SATARA, WAS ADDED 2 SEP 2026. It costs no wall clock:
-    # the cameras are threads sharing one deadline, so RUNTIME is unchanged and
-    # timeout-minutes 15 still has its 5 minutes of headroom. What it does cost
+    # the cameras are threads sharing one deadline, so RUNTIME is unchanged.
+    # The headroom claim that used to sit here is superseded: at RUNTIME 720 it
+    # is about 2m20, not 5 minutes. What it does cost
     # is about 50% more archived JPEG per day and one more chance per run of a
     # 403 turning the job red.
     #
-    # RUNTIME 270 -> 540 on 1 Sep 2026. At 270 s inside an 882 s cycle the
-    # detector was awake 31% of the time and two thirds of every image both
-    # cameras published was never fetched. 540 takes that to about 61%. The
-    # repo is public so Actions minutes are free. This is the largest single
-    # lever in the project and it is worth more than any threshold: the 1 Sep
-    # lion was on camera for 22 seconds across three presets.
+    # RUNTIME 270 -> 540 on 1 Sep 2026, AND 540 -> 720 ON 4 SEP 2026 EVENING.
+    # The repo is public so Actions minutes are free. This is the largest
+    # single lever in the project and it is worth more than any threshold: the
+    # 1 Sep lion was on camera for 22 seconds across three presets.
+    #
+    # THE 61% THIS BLOCK USED TO CLAIM IS PROBABLY WRONG AND IS SUPERSEDED.
+    # It came from 540 s against a run every 14.7 min measured 31 Aug with two
+    # cameras. Derived instead from the 4 Sep log: Nossob wrote 1,024 rows in
+    # 16h37m, one per 58.4 s, against a median 25 s between frames INSIDE a
+    # run, which is 42.8% awake and implies a run every 21 minutes. Talamati
+    # 41.9%, Satara 39.8%. IT IS A RATIO OF TWO MEDIANS, so read it as 40-45%,
+    # and settle it properly by splitting a CSV on gaps over 60 s and summing
+    # the run windows. That has not been done.
+    #
+    # THE ARITHMETIC. Coverage is RUNTIME / (RUNTIME + overhead + idle).
+    # Overhead is ~40 s of checkout, pip, cache and push. Idle is the wait for
+    # the next scheduled event GitHub does not drop, and at 540 s it solves to
+    # roughly 680 s. Idle does not shrink when RUNTIME grows, so:
+    #     540 -> ~580 s job, ~43%, 320 s of headroom under timeout-minutes 15
+    #     720 -> ~760 s job, ~50%, 140 s of headroom      <-- CHOSEN
+    #     780 -> ~820 s job, ~52%,  80 s of headroom
+    #     840 -> ~880 s job, ~54%,  20 s of headroom, unsafe
+    # 720 is the last value that keeps real headroom for a slow pip install.
+    # DO NOT go past it without raising timeout-minutes, and read the note on
+    # timeout-minutes below before doing that.
+    #
+    # NOTHING THAT ONLY CHANGES RUNTIME REACHES 60%. Idle is the whole problem
+    # and cron */5 is already GitHub's floor. The only lever that removes idle
+    # is dispatching the next run from the end of the current one, which drives
+    # coverage to roughly 90% and needs a PERSONAL ACCESS TOKEN in a secret,
+    # because events triggered with GITHUB_TOKEN do not start new workflow
+    # runs, by design, to prevent recursion. Not built and not measured.
     #
     # DO NOT try to fix coverage by shortening this. Five minutes is GitHub's
     # documented floor and it is not being honoured anyway: measured over the
@@ -38,15 +65,15 @@ on:
     inputs:
       runtime:
         description: "Seconds to poll (use 40 for a quick connectivity test)"
-        default: "540"
+        default: "720"
       collect:
         description: "Frames to archive: top | all | hits"
         default: "top"
       top_n:
-        # Kept in step with the scheduled default below. Both go back to 1
-        # when the 3 Sep 2026 collection day ends. Irrelevant when collect=all.
+        # Kept in step with the scheduled default below. BACK TO 1 ON 4 SEP
+        # 2026, decided explicitly. Irrelevant when collect=all.
         description: "Frames kept per run in 'top' mode (1 normally, 4 on a collection day)"
-        default: "4"
+        default: "1"
       force_all_hours:
         description: "Ignore the active-hours gate (1 = yes)"
         default: "1"
@@ -61,9 +88,15 @@ concurrency:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    # RUNTIME 540 (9 min) plus ~40 s of checkout, pip, cache and push measured
-    # on the 270 s runs puts a normal job at about 9m45. 15 leaves 5 minutes of
-    # headroom for a slow pip install.
+    # RUNTIME 720 (12 min) plus ~40 s of checkout, pip, cache and push measured
+    # on the 270 s runs puts a normal job at about 12m40. 15 leaves about 2m20
+    # of headroom for a slow pip install, down from 5 minutes at RUNTIME 540.
+    # That is the whole reason RUNTIME stopped at 720 and not 780 or 840.
+    #
+    # THE HEADROOM SHRINKS ON ITS OWN. Checkout gets slower as the archive
+    # grows, so this margin is not constant. If jobs start being killed at 15
+    # minutes, the answer is to prune the archive or lower RUNTIME, not to
+    # raise this.
     #
     # Do not raise it further. `concurrency` has cancel-in-progress: false, so
     # a hung job holds the queue for the whole timeout and every run behind it
@@ -92,12 +125,30 @@ jobs:
       - name: Watch the waterholes
         env:
           NTFY_TOPIC:      ${{ secrets.NTFY_TOPIC }}
-          RUNTIME:         ${{ inputs.runtime || '540' }}
+          RUNTIME:         ${{ inputs.runtime || '720' }}
           COLLECT:         ${{ inputs.collect || 'top' }}
-          # 1 -> 4 ON 3 SEP 2026 FOR A DAYLIGHT COLLECTION DAY.
-          # REVERT TO 1 BEFORE DARK. At 4 this is roughly 50 MB of JPEG per
-          # full daylight day, from the 900px thumbnails the archive actually
-          # stores and the observed cadence of about one run every 14.7 min.
+          # BACK TO 1 ON 4 SEP 2026 EVENING. DECIDED EXPLICITLY, and the
+          # reason has changed rather than the argument being lost.
+          #
+          # WHY 4 WAS RIGHT AND IS NO LONGER. At TOP_N 1 the archive keeps the
+          # single largest blob of each run, which is the most broken frame of
+          # every window by construction, and that was the only daylight sample
+          # the project had. It cost roughly 50 MB of JPEG a day into git
+          # history that can never be reclaimed.
+          #
+          # WHAT CHANGED TONIGHT. NB_MAX 250 and FILL_CMP 0.26 at both Kruger
+          # cameras take daylight hits from 8 a day to about 137, and watch.py
+          # archives EVERY hit regardless of TOP_N. The hits are now the
+          # daylight sample, and they are a better one: they are selected by
+          # the live rule rather than by "biggest blob wins".
+          #
+          # WHAT IT COSTS, SAID PLAINLY. Nossob is untouched by that bundle and
+          # runs about 23 hits a day, so Nossob's archived sample falls from
+          # about 4 frames a run to 1. Kruger at NIGHT is also untouched and
+          # produces very few hits, so Talamati and Satara night archives thin
+          # out too. If a Nossob daylight or a Kruger night question needs
+          # frames, the answer is a manual dispatch with collect=all over one
+          # window, not a standing TOP_N of 4.
           #
           # WHY, THIS TIME. The daylight blob is the project's biggest unknown:
           # eleven of the thirteen daylight frames ever reviewed have a box
@@ -116,7 +167,7 @@ jobs:
           # History of this line: back to 1 on the evening of 1 Sep 2026 after
           # a collection half-day at 4 produced 76 archived daylight frames per
           # camera between 09:52 and 15:51 UTC.
-          TOP_N:           ${{ inputs.top_n || '4' }}
+          TOP_N:           ${{ inputs.top_n || '1' }}
           FORCE_ALL_HOURS: ${{ inputs.force_all_hours || '' }}
         run: python watch.py
 
