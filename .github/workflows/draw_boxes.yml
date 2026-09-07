@@ -1,0 +1,83 @@
+name: draw-boxes
+
+# Draws the logged blob box onto the archived JPEGs and uploads them as an
+# artifact, so "is the box on the animal" can be answered by looking.
+#
+# READ-ONLY. Does not commit, does not push, does not touch watch.py,
+# cameras.py, selftest.py or watch.yml. Its only output is an artifact.
+#
+# TO USE THE MEGADETECTOR BOX TOO: download identify_test.csv from an
+# identify-test run, commit it as tools/identify_test.csv, and leave
+# identify_csv at its default. Without it the green box is simply absent and
+# everything else still works.
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Which set: animals | empties | reviewed | all'
+        required: false
+        default: 'animals'
+      dates:
+        description: 'Comma-separated YYYYMMDD, or blank for all'
+        required: false
+        default: ''
+      cameras:
+        description: 'Comma-separated camera dirs'
+        required: false
+        default: 'nossob,talamati,satara'
+      limit:
+        description: 'Max frames this run (0 = all)'
+        required: false
+        default: '0'
+      offset:
+        description: 'Skip this many first'
+        required: false
+        default: '0'
+      identify_csv:
+        description: 'Path to an identify_test.csv for the green MD box, or blank'
+        required: false
+        default: 'tools/identify_test.csv'
+
+concurrency:
+  group: draw-boxes
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  draw:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install --quiet pillow
+
+      - name: Draw the boxes
+        run: |
+          python tools/draw_boxes.py \
+            --only "${{ inputs.only }}" \
+            --dates "${{ inputs.dates }}" \
+            --cameras "${{ inputs.cameras }}" \
+            --limit "${{ inputs.limit }}" \
+            --offset "${{ inputs.offset }}" \
+            --identify-csv "${{ inputs.identify_csv }}" \
+            --labels tools/ground_truth.txt \
+            --reviewed tools/reviewed.txt \
+            --logs logs \
+            --out annotated
+
+      - name: Upload annotated frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: annotated-${{ inputs.only }}-${{ inputs.offset }}
+          path: annotated
+          retention-days: 30
+          if-no-files-found: warn
