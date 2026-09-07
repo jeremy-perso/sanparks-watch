@@ -37,7 +37,15 @@ REVISED 7 SEPTEMBER 2026. What changed and why:
      Scoring on the first detection only understates recall whenever
      MegaDetector puts a person or vehicle box above the animal box.
 
-  5. `--only animals` RUNS THE 524 POSITIVE FRAMES ALONE. Wall clock per image
+  5. `prediction` IS SPLIT INTO READABLE COLUMNS. The raw field is a
+     semicolon-joined string starting with a UUID
+     (`ddf59264-...;mammalia;carnivora;felidae;panthera;leo;lion`), which is
+     unreadable in a tally. `prediction_class` is the taxonomic class and
+     `prediction_common` is the common name, and the printed summaries use
+     them. The raw string is kept as `prediction` so nothing is lost.
+     Added after the first real run, 7 September 2026.
+
+  6. `--only animals` RUNS THE 524 POSITIVE FRAMES ALONE. Wall clock per image
      on the runner has been an open question for five sessions and nothing can
      be planned until it is measured. Run 200 images first, read the number the
      summarise step prints, then decide how to shard the other 3,900.
@@ -110,6 +118,17 @@ def load_labels(path):
                 continue
             keys.add(line.replace("\\", "/"))
     return keys
+
+
+def split_prediction(raw):
+    """`<uuid>;<class>;<order>;<family>;<genus>;<species>;<common>` ->
+    (class, common). Short or empty strings degrade to ("", raw)."""
+    if not raw:
+        return "", ""
+    parts = raw.split(";")
+    if len(parts) < 7:
+        return "", raw
+    return parts[1], parts[-1]
 
 
 def frame_key(row):
@@ -288,8 +307,9 @@ FIELDS = [
     "label",
     "preset", "logged_blob", "logged_fill", "logged_hit",
     "logged_dist", "logged_nblobs", "logged_n",
+    "prediction_common", "prediction_class",
     "prediction", "prediction_score", "prediction_source",
-    "top1_class", "top1_score",
+    "top1_common", "top1_class", "top1_score",
     "n_detections", "md_label", "md_conf", "md_animal_conf",
     "md_bw_blocks", "md_bh_blocks", "md_cx", "md_cy", "md_area_blocks",
     "failures", "model_version",
@@ -322,6 +342,8 @@ def cmd_summarise(args):
         row["logged_n"] = lg.get("n", "") if lg else ""
 
         row["prediction"] = p.get("prediction", "")
+        row["prediction_class"], row["prediction_common"] = \
+            split_prediction(row["prediction"])
         row["prediction_score"] = p.get("prediction_score", "")
         row["prediction_source"] = p.get("prediction_source", "")
         row["failures"] = ";".join(p.get("failures", []))
@@ -330,7 +352,8 @@ def cmd_summarise(args):
         cls = p.get("classifications") or {}
         classes = cls.get("classes") or []
         scores = cls.get("scores") or []
-        row["top1_class"] = classes[0] if classes else ""
+        raw_top1 = classes[0] if classes else ""
+        row["top1_class"], row["top1_common"] = split_prediction(raw_top1)
         row["top1_score"] = scores[0] if scores else ""
 
         dets = p.get("detections") or []
@@ -450,7 +473,7 @@ def _score(rows, args):
     tal = {}
     for r in rows:
         if r["label"] == "animal" and float(r["md_animal_conf"] or 0) >= 0.2:
-            k = (r["cam"], r["prediction"] or "(blank)")
+            k = (r["cam"], r["prediction_common"] or "(blank)")
             tal[k] = tal.get(k, 0) + 1
     for k, v in sorted(tal.items(), key=lambda kv: (kv[0][0], -kv[1]))[:60]:
         print(f"  {k[0]:10}{v:5d}  {k[1]}")
@@ -482,8 +505,12 @@ def _tallies(rows):
             out[r.get(key) or "(blank)"] = out.get(r.get(key) or "(blank)", 0) + 1
         return sorted(out.items(), key=lambda kv: -kv[1])
 
+    print("\n-- taxonomic class, all rows --")
+    for k, v in tally("prediction_class")[:15]:
+        print(f"  {v:5d}  {k}")
+
     print("\n-- final prediction, all rows --")
-    for k, v in tally("prediction")[:30]:
+    for k, v in tally("prediction_common")[:30]:
         print(f"  {v:5d}  {k}")
 
     print("\n-- failures --")
