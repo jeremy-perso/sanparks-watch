@@ -8,6 +8,18 @@ name: identify-test
 # Its only output is an artifact you download.
 #
 # Manual dispatch only. No schedule.
+#
+# REVISED 7 SEP 2026. Two changes:
+#
+#   `only` lets a run cover just the 524 confirmed-animal frames or just the
+#   3,585 confirmed empties, using tools/ground_truth.txt. RUN `animals` WITH
+#   `limit` 200 FIRST. It finishes in minutes, and the summarise step prints
+#   seconds per image, which is the number that has been unanswered for five
+#   sessions and that decides how everything else is scheduled.
+#
+#   The summarise step now writes identify_score.csv as well, because the
+#   harness scores recall and false positives against Jeremy's eye labels
+#   rather than printing a bare tally of predictions.
 
 on:
   workflow_dispatch:
@@ -20,14 +32,18 @@ on:
         description: 'Comma-separated archive roots to scan'
         required: false
         default: 'hits,frames'
+      only:
+        description: 'Which labelled set: all | animals | empties'
+        required: false
+        default: 'animals'
       dates:
         description: 'Comma-separated YYYYMMDD to include, or blank for all'
         required: false
         default: ''
       limit:
-        description: 'Max images this run (0 = all)'
+        description: 'Max images this run (0 = all). USE 200 ON THE FIRST RUN.'
         required: false
-        default: '0'
+        default: '200'
       offset:
         description: 'Skip this many images first (for sharding)'
         required: false
@@ -96,6 +112,8 @@ jobs:
             --cameras "${{ inputs.cameras }}" \
             --roots "${{ inputs.roots }}" \
             --dates "${{ inputs.dates }}" \
+            --only "${{ inputs.only }}" \
+            --labels tools/ground_truth.txt \
             --limit "${{ inputs.limit }}" \
             --offset "${{ inputs.offset }}" \
             --out filepaths.txt
@@ -118,20 +136,24 @@ jobs:
           echo "WALL_SECONDS=$((END-START))" >> "$GITHUB_ENV"
           echo "Wall clock: $((END-START))s for ${{ steps.list.outputs.count }} images"
 
-      - name: Join to filenames and summarise
+      - name: Join to filenames, labels and logs, then score
         run: |
           python tools/identify_test.py summarise \
             --predictions predictions.json \
+            --labels tools/ground_truth.txt \
+            --logs logs \
             --out identify_test.csv \
+            --score-out identify_score.csv \
             --wall-seconds "${WALL_SECONDS:-0}"
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: identify-test-results
+          name: identify-test-results-${{ inputs.only }}-${{ inputs.offset }}
           path: |
             identify_test.csv
+            identify_score.csv
             predictions.json
             filepaths.txt
           retention-days: 30
