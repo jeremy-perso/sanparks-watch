@@ -1,0 +1,5 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-07 02:39:16,2026-09-07 04:39:16,talamati,night,95,hits,163,0.0,0,0.15,blank,,0.9952,0,,,,,4.0.3a,hits/talamati/20260907/023916_p95_blob163.jpg
+2026-09-07 02:44:56,2026-09-07 04:44:56,talamati,night,92,hits,111,0.0338,0,0.15,blank,,0.9787,4,39.8,12.0,0.491,0.54,4.0.3a,hits/talamati/20260907/024456_p92_blob111.jpg
+2026-09-07 02:58:09,2026-09-07 04:58:09,talamati,night,95,hits,108,0.0,0,0.15,blank,,0.9857,0,,,,,4.0.3a,hits/talamati/20260907/025809_p95_blob108.jpg
+2026-09-07 02:59:08,2026-09-07 04:59:08,talamati,night,159,hits,148,0.0,0,0.15,blank,,0.9974,0,,,,,4.0.3a,hits/talamati/20260907/025908_p159_blob148.jpg

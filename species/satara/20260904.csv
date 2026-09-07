@@ -1,0 +1,8 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-04 01:25:18,2026-09-04 03:25:18,satara,night,4,hits,109,0.894,1,0.15,domestic cat,mammalia,0.9272,5,13.5,12.7,0.07,0.117,4.0.3a,hits/satara/20260904/012518_p4_blob109.jpg
+2026-09-04 02:03:18,2026-09-04 04:03:18,satara,night,4,hits,359,0.8858,1,0.15,animal,,0.8858,1,29.6,9.0,0.408,0.083,4.0.3a,hits/satara/20260904/020318_p4_blob359.jpg
+2026-09-04 07:24:13,2026-09-04 09:24:13,satara,day,25,hits,70,0.8609,1,0.3,animal,,0.8609,30,3.3,2.9,0.809,0.381,4.0.3a,hits/satara/20260904/072413_p25_blob70.jpg
+2026-09-04 13:52:14,2026-09-04 15:52:14,satara,day,26,hits,147,0.0,0,0.3,blank,,0.9895,0,,,,,4.0.3a,hits/satara/20260904/135214_p26_blob147.jpg
+2026-09-04 17:35:06,2026-09-04 19:35:06,satara,night,4,hits,157,0.2999,1,0.15,blank,,0.9983,2,1.9,1.5,0.549,0.375,4.0.3a,hits/satara/20260904/173506_p4_blob157.jpg
+2026-09-04 17:59:57,2026-09-04 19:59:57,satara,night,41,hits,133,0.0128,0,0.15,blank,,0.9888,2,3.8,8.4,0.02,0.8,4.0.3a,hits/satara/20260904/175957_p41_blob133.jpg
+2026-09-04 21:47:07,2026-09-04 23:47:07,satara,night,41,hits,107,0.0,0,0.15,blank,,0.9937,0,,,,,4.0.3a,hits/satara/20260904/214707_p41_blob107.jpg
