@@ -416,7 +416,41 @@ CAMERAS = [
             #
             # NIGHT MUST NOT COPY THIS. thr_night below keeps FILL_CMP 0.36.
             "FILL_CMP":  0.26,
-            "FILL_WIDE": 0.72,   # smear naturals measured 0.36-0.65
+            "FILL_WIDE": 0.30,   # 0.72 -> 0.30 ON 7 SEP 2026. THE ONLY GATE AT
+            # KRUGER DAYLIGHT THAT MOVES MAMMALS. Every other candidate was
+            # swept the same day against 37 eye-confirmed Kruger daylight
+            # mammal frames and moved 0 or 1 of them: MIN_N 3 or 2, DIST_MAX
+            # 10 or 12, BLOB_MAX 3000, BLOB_MIN 30, NB_MAX 400. FILL_WIDE
+            # moves 8.
+            #
+            # MEASURED, on the 37 mammal frames and on 1,153 eye-confirmed
+            # empty Kruger daylight frames (Jeremy reviewed the whole archive
+            # on 7 Sep; reviewed-minus-animal is the negative set):
+            #     0.72 live   talamati 10/29  satara 2/8   empties 347/1153
+            #     0.40        talamati 12/29  satara 2/8   empties 424/1153
+            #     0.32        talamati 14/29  satara 3/8   empties 487/1153
+            #     0.30        talamati 15/29  satara 4/8   empties 499/1153
+            #     0.26        talamati 15/29  satara 5/8   empties 517/1153
+            #
+            # 0.30 AND NOT 0.26 for one structural reason: FILL_CMP is 0.26
+            # here, and setting FILL_WIDE equal to it makes ASP_MAX inert in
+            # daylight, retiring the smear rejector entirely. 0.30 keeps the
+            # wide branch a real branch. The last Satara mammal frame is the
+            # price and it is a warthog already caught on other frames.
+            #
+            # THE 4 SEP REJECTION OF 0.26 IS SUPERSEDED, NOT FORGOTTEN. It was
+            # rejected because it took the 13-frame talamati-day NATURAL set
+            # from 2 leaks to 9. That set is synthetic and 13 frames; the 1,153
+            # reviewed empties above are real. NATURAL_CAP has been raised to
+            # match and the leak is a recorded number, not a surprise.
+            #
+            # WHAT PAYS FOR THE VOLUME: Kruger daylight goes from about 104 to
+            # 250 hits a day. Stage 2 (tools/identify.py, keep_conf 0.30) fires
+            # on 17% of talamati-day and 29% of satara-day confirmed empties,
+            # so roughly 30 to 40 of the ~150 extra hits a day survive it, and
+            # the mammals do: SpeciesNet catches 62 of 67 eye-confirmed mammal
+            # frames. DO NOT MAKE THIS CHANGE WITHOUT STAGE 2 RUNNING.
+            # (was: smear naturals measured 0.36-0.65
             # SIG_TOL 25 stopped the fragmentation but it also lumps framings
             # up to 25 apart into one preset, and a frame 15-25 from its own
             # background is not that view. All 7 daylight hits of 30-31 Aug sat
@@ -784,7 +818,11 @@ CAMERAS = [
             #
             # NIGHT DOES NOT COPY THIS. thr_night below sets its own.
             "FILL_CMP":  0.26,
-            "FILL_WIDE": 0.72,
+            # 0.72 -> 0.30 ON 7 SEP 2026, same change and same evidence as the
+            # Talamati block above: it is the only Kruger daylight gate that
+            # moves a mammal, it takes satara 2/8 to 4/8 of the eye-confirmed
+            # mammal frames, and 0.30 rather than 0.26 keeps ASP_MAX live.
+            "FILL_WIDE": 0.30,
             # 6.0 -> 8.0, 4 SEP 2026 LATE EVENING, IN STEP WITH TALAMATI.
             # Both Kruger cameras run the same daylight DIST_MAX, as they have
             # since Satara was added, and the row that forced the change is at

@@ -91,7 +91,24 @@ NATURAL = {
 # value of FILL_CMP that takes one and not the other.
 #
 # EVERYTHING ELSE IS 0 AND MUST STAY 0.
-NATURAL_CAP = {("talamati", "day"): 2}
+# RAISED 2 -> 9 ON 7 SEP 2026, deliberately, with FILL_WIDE 0.72 -> 0.30 at
+# Kruger daylight. This is the whole price of that change inside this harness
+# and it is recorded rather than hidden.
+#
+# WHY THE LEAK IS ACCEPTED. This set is 13 frames. On 7 Sep Jeremy reviewed the
+# entire archive by eye, which yields 1,153 eye-confirmed EMPTY Kruger daylight
+# frames against 37 eye-confirmed MAMMAL frames. Measured on those: FILL_WIDE
+# 0.72 catches 12 of 37 mammals and leaks 347 of 1,153 empties; 0.30 catches 19
+# of 37 and leaks 499. Seven more leaks in a 13-frame synthetic set is the same
+# trade seen at 90x the sample size, and there it is worth taking.
+#
+# THE 4 SEP DECISION IS SUPERSEDED, NOT FORGOTTEN. FILL_WIDE 0.26 was rejected
+# that evening precisely because it took this number from 2 to 9. The reason it
+# is now accepted is that a real negative set exists and a real mammal set
+# exists; neither did on 4 September.
+#
+# EVERYTHING ELSE IS 0 AND MUST STAY 0.
+NATURAL_CAP = {("talamati", "day"): 9}
 
 # --- CONFIRMED, 30 Aug - 2 Sep 2026: real frames, eyes on the JPEG -----------
 # Nossob after dark. Every row here was archived, looked at, and either does or
@@ -728,6 +745,15 @@ NO_PROMOTE = {
     "03 09:54:05Z p15, spotted hyena lying, CLEARS DIST_MAX 8.0 but MIN_N n=2":
         "MIN_N 6: preset 15 was on its second frame ever, and every row in this "
         "file is scored at n=99",
+    # ADDED 7 SEP 2026 with FILL_WIDE 0.30. Both rows are now caught and NEITHER
+    # is a detection of its animal: the box is somewhere else in the frame, so
+    # promoting them would guard a floor that measures nothing.
+    "03 13:02:05Z p90, MANED MALE LION, below the floor, box elsewhere":
+        "the recovered blob is a foreground shadow band at cy 0.799; the lion "
+        "is at about cx 0.84, cy 0.57, outside the box",
+    "03 14:40:58Z p0, warthog boar":
+        "the box is the foreground grass below the animal, verified by eye "
+        "7 Sep 2026; the boar is 24 x 14.4 blocks and outside it",
 }
 
 KNOWN_MISSES = {
