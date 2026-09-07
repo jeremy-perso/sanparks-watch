@@ -4,35 +4,45 @@ Evaluation only. Read-only on this repo. Nothing here runs on a schedule,
 nothing here commits, and nothing here imports `watch.py`, `cameras.py` or
 `selftest.py`. Delete the files and the repo is exactly as it was.
 
-**Revised 7 September 2026.** The harness now carries its own ground truth and
-reports recall and false positives in the same table. The old instruction to
-"score it against `animals.md`" is gone; that file does not exist.
+**Revised 7 September 2026, twice.** The harness carries its own ground truth
+and reports recall and false positives in the same table. The old instruction to
+"score it against `animals.md`" is gone; that file does not exist. After the
+second run it also carries the reviewed set, so a growing archive cannot leak
+unreviewed frames into the negative set.
 
-## Run this first
+## Timing, measured
 
-Actions tab, `identify-test`, Run workflow, with the defaults:
+**2.75 s/image with warm caches**, measured 7 September 2026 on 200 images
+(549 s), against 3.56 s/image on the cold first run (711 s). Setup fell from 13
+minutes to about 70 seconds once `speciesnet-weights-v1` and
+`identify-pip-Linux-v1` were populated.
 
-    only   = animals
-    limit  = 200
+| job | images | model time |
+|---|---|---|
+| a day of Kruger daylight hits (~137) | 137 | **6 minutes** |
+| the 3,585 reviewed empties | 3,585 | 164 minutes |
+| the whole reviewed archive | 4,109 | 188 minutes |
 
-That is 200 of the 524 confirmed-animal frames. It finishes in minutes and the
-summarise step prints **seconds per image on the runner**, which is the number
-`state.md` open item 7 has been asking for over five sessions. Everything else
-about scheduling stage 2 depends on it.
+**The model is deterministic on CPU.** The two 7 September runs over the same
+200 images produced identical `md_animal_conf` and identical `prediction` on
+every row. Shards can be combined and a run never needs repeating for variance.
 
-Once you have that number:
+## What to run
+
+Actions tab, `identify-test`, Run workflow.
 
 | what you want | `only` | `limit` | `offset` |
 |---|---|---|---|
 | the rest of the animals | `animals` | 0 | 200 |
 | recall on everything confirmed | `animals` | 0 | 0 |
 | the false-positive half | `empties` | 0 | 0 |
-| one shard of the empties | `empties` | 1200 | 0, then 1200, 2400 |
-| everything | `all` | 0 | 0 |
+| one shard of the empties | `empties` | 1300 | 0, then 1300, 2600 |
+| the whole reviewed set | `reviewed` | 0 | 0 |
+| everything on disk, reviewed or not | `all` | 0 | 0 |
 
-The empty set is 3,585 frames. At 2 s/image that is two hours, comfortably
-inside `timeout-minutes` 350. At 6 s/image it is six hours and must be sharded.
-The first run tells you which.
+At 2.75 s/image the empties are 164 minutes plus a minute of setup, inside
+`timeout-minutes` 350 in one run. Shard it in three if you would rather not
+sit on a single three-hour job.
 
 ## What it does
 
@@ -46,13 +56,24 @@ the model output to three things:
    stage 1 fired,
 3. the eye label in `tools/ground_truth.txt`.
 
-## `tools/ground_truth.txt`
+## The two label files
 
-**524 archived frames that contain an animal, confirmed by eye over the whole
-of `hits/` and `frames/` on 7 September 2026.** Any archived frame not listed
-is a reviewed empty, which makes the file a negative set of 3,585 as well as a
-positive set of 524. It is the only hand-maintained file here; add a line when
-a new animal frame is confirmed.
+**`tools/ground_truth.txt`, 524 keys.** Archived frames that contain an animal,
+confirmed by eye over the whole of `hits/` and `frames/` on 7 September 2026.
+
+**`tools/reviewed.txt`, 4,109 keys.** Every archived frame that was looked at in
+that pass, from the archive listing taken at 07:30 UTC. Reviewed minus animal is
+the negative set: 3,585 confirmed empties.
+
+**Both files are needed and the second is not optional.** Without it, "archived
+and not an animal" would mean "empty", and the archive grows continuously: the
+watcher added 216 frames between the 07:30 review and the 08:30 identify run on
+7 September alone. Those would have been scored as confirmed empties they never
+were. A frame in neither file is labelled `unreviewed`, is excluded from every
+score, and the summarise step says how many there were.
+
+They are the only hand-maintained files here. After a new review pass, append
+the new keys to `reviewed.txt` and the animal ones to `ground_truth.txt`.
 
 Two things it does **not** say. It does not say the logged blob box is on the
 animal: on the reviewed sample the box lands on the animal about 4 times in 16
@@ -92,7 +113,7 @@ tracker needs and what no threshold work can supply.
   usable.
 - `mode` is day or night on watch.py's own rule: local hour, tz +2, night 18 to
   06. Computed from the filename, so it is present even when no log row is.
-- `label` is `animal` or `empty` from the ground truth.
+- `label` is `animal`, `empty` or `unreviewed`. Only the first two are scored.
 - `logged_hit` is stage 1's verdict on the same frame.
 - `logged_blob` is the blob size the geometric detector recorded.
 - `md_bw_blocks` / `md_bh_blocks` / `md_area_blocks` are MegaDetector's box on

@@ -45,7 +45,16 @@ REVISED 7 SEPTEMBER 2026. What changed and why:
      them. The raw string is kept as `prediction` so nothing is lost.
      Added after the first real run, 7 September 2026.
 
-  6. `--only animals` RUNS THE 524 POSITIVE FRAMES ALONE. Wall clock per image
+  6. THE REVIEWED SET IS A SEPARATE FILE, `tools/reviewed.txt`. A frame is
+     `empty` only if Jeremy actually reviewed it and found nothing. Without
+     this, "archived and not in ground_truth" would mean "empty", and the
+     archive grows every run: the watcher added 216 frames between the review
+     at 07:30 and the second identify run at 08:30 on 7 September alone. Those
+     would have been scored as confirmed empties they never were. A frame in
+     neither file is labelled `unreviewed` and is excluded from all scoring.
+     Added 7 September 2026 after the second run.
+
+  7. `--only animals` RUNS THE 524 POSITIVE FRAMES ALONE. Wall clock per image
      on the runner has been an open question for five sessions and nothing can
      be planned until it is measured. Run 200 images first, read the number the
      summarise step prints, then decide how to shard the other 3,900.
@@ -98,6 +107,7 @@ NAME_RE = re.compile(
 )
 
 DEFAULT_LABELS = os.path.join("tools", "ground_truth.txt")
+DEFAULT_REVIEWED = os.path.join("tools", "reviewed.txt")
 
 
 # --------------------------------------------------------------------------
@@ -105,19 +115,35 @@ DEFAULT_LABELS = os.path.join("tools", "ground_truth.txt")
 # --------------------------------------------------------------------------
 
 def load_labels(path):
-    """Return the set of '<cam>/<date>/<hhmmss>' keys confirmed to hold an
-    animal. Missing file is not fatal: the harness still runs, it just cannot
-    score."""
+    """The '<cam>/<date>/<hhmmss>' keys confirmed to hold an animal. Missing
+    file is not fatal: the harness still runs, it just cannot score."""
+    return load_keys(path)
+
+
+def load_keys(path):
+    """Read a key file: one '<cam>/<date>/<hhmmss>' per line, # comments
+    ignored. Missing file returns an empty set rather than failing."""
     keys = set()
     if not path or not os.path.exists(path):
         return keys
     with open(path, encoding="utf-8") as fp:
         for line in fp:
             line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            keys.add(line.replace("\\", "/"))
+            if line and not line.startswith("#"):
+                keys.add(line.replace("\\", "/"))
     return keys
+
+
+def label_for(key, labels, reviewed):
+    """animal | empty | unreviewed. `empty` requires the frame to have been
+    reviewed, never merely to be absent from the animal list."""
+    if key in labels:
+        return "animal"
+    if reviewed and key in reviewed:
+        return "empty"
+    if not reviewed:
+        return "empty" if labels else ""
+    return "unreviewed"
 
 
 def split_prediction(raw):
@@ -243,6 +269,7 @@ def cmd_list(args):
     roots = [r.strip() for r in args.roots.split(",") if r.strip()]
     dates = [d.strip() for d in args.dates.split(",") if d.strip()]
     labels = load_labels(args.labels)
+    reviewed = load_keys(args.reviewed)
 
     found = []
     for root in roots:
@@ -264,14 +291,17 @@ def cmd_list(args):
     found.sort()
     total = len(found)
 
-    if args.only in ("animals", "empties"):
+    if args.only in ("animals", "empties", "reviewed"):
         if not labels:
             print(f"--only {args.only} requested but no labels were loaded "
                   f"from {args.labels}; scanning everything instead")
         else:
-            want_animal = args.only == "animals"
+            want = {"animals": {"animal"},
+                    "empties": {"empty"},
+                    "reviewed": {"animal", "empty"}}[args.only]
             found = [p for p in found
-                     if (frame_key(parse_path(p)) in labels) == want_animal]
+                     if label_for(frame_key(parse_path(p)), labels, reviewed)
+                     in want]
 
     selected_before_slice = len(found)
     if args.offset:
@@ -288,7 +318,8 @@ def cmd_list(args):
     print(f"after --only {args.only:8s}: {selected_before_slice}")
     print(f"selected:              {len(found)}")
     print(f"unparseable filenames: {unparsed}")
-    print(f"labels loaded:         {len(labels)} animal frames")
+    print(f"labels loaded:         {len(labels)} animal frames, "
+          f"{len(reviewed)} reviewed frames")
     by = {}
     for p in found:
         r = parse_path(p)
@@ -324,16 +355,13 @@ def cmd_summarise(args):
     preds = data.get("predictions", [])
 
     labels = load_labels(args.labels)
+    reviewed = load_keys(args.reviewed)
     logs = load_logs(args.logs)
 
     rows = []
     for p in preds:
         row = parse_path(p.get("filepath", ""))
-        key = frame_key(row)
-        if not labels:
-            row["label"] = ""
-        else:
-            row["label"] = "animal" if key in labels else "empty"
+        row["label"] = label_for(frame_key(row), labels, reviewed)
 
         lg = logs.get((row["cam"], row["utc"]))
         row["logged_hit"] = lg.get("hit", "") if lg else ""
@@ -406,6 +434,11 @@ def cmd_summarise(args):
               f"{args.wall_seconds / n * 137 / 60:.1f} minutes.")
 
     scored = [r for r in rows if r["label"] in ("animal", "empty")]
+    unrev = sum(1 for r in rows if r["label"] == "unreviewed")
+    if unrev:
+        print(f"\n{unrev} of {len(rows)} rows are NOT in {args.reviewed}: "
+              f"archived after the review pass. They are excluded from every "
+              f"score below, which is correct and not an error.")
     if not scored:
         print("\nNo ground-truth labels loaded, so no scoring. "
               f"Expected them at {args.labels}.")
@@ -529,8 +562,9 @@ def main():
     p1.add_argument("--limit", type=int, default=0)
     p1.add_argument("--offset", type=int, default=0)
     p1.add_argument("--only", default="all",
-                    choices=["all", "animals", "empties"])
+                    choices=["all", "animals", "empties", "reviewed"])
     p1.add_argument("--labels", default=DEFAULT_LABELS)
+    p1.add_argument("--reviewed", default=DEFAULT_REVIEWED)
     p1.add_argument("--out", default="filepaths.txt")
     p1.set_defaults(func=cmd_list)
 
@@ -539,6 +573,7 @@ def main():
     p2.add_argument("--out", default="identify_test.csv")
     p2.add_argument("--score-out", default="identify_score.csv")
     p2.add_argument("--labels", default=DEFAULT_LABELS)
+    p2.add_argument("--reviewed", default=DEFAULT_REVIEWED)
     p2.add_argument("--logs", default="logs")
     p2.add_argument("--wall-seconds", type=float, default=0)
     p2.set_defaults(func=cmd_summarise)
