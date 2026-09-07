@@ -3,15 +3,44 @@
 identify_test.py
 
 Evaluation harness only. Reads the archived JPEGs, hands them to SpeciesNet,
-and joins the result back to the metadata already encoded in the filenames.
+and joins the result back to three things: the metadata in the filename, the
+logged CSV row for that frame, and Jeremy's eye label from
+`tools/ground_truth.txt`.
 
 Writes nothing into the repo. Touches no detector code.
-
-Two modes:
 
     python tools/identify_test.py list      --out filepaths.txt
     python tools/identify_test.py summarise --predictions predictions.json \
                                             --out identify_test.csv
+
+REVISED 7 SEPTEMBER 2026. What changed and why:
+
+  1. GROUND TRUTH IS NOW BAKED IN. `tools/ground_truth.txt` holds the 524
+     archived frames Jeremy confirmed contain an animal, out of 4,109 archived.
+     Every other archived frame was reviewed and is empty. So this harness can
+     now report RECALL and FALSE POSITIVES in the same table instead of a bare
+     tally of predictions. The old README said "score it against animals.md";
+     that file no longer exists and the scoring is done here.
+
+  2. THE LOG ROW IS JOINED IN. `logged_hit` says whether stage 1 fired on that
+     frame, so the CSV answers the question the project actually has: what does
+     stage 2 catch that stage 1 misses, and what would stage 2 throw away.
+
+  3. THE LOG PARSER IS BY FIELD COUNT, NOT BY HEADER. Three log files written
+     before the 4 September schema rotation carry rows wider than their own
+     header: logs/nossob/20260831.csv (18-col header, 958 rows of 23),
+     logs/nossob/20260901.csv and logs/talamati/20260901.csv (23-col header,
+     1,728 and 855 rows of 26). csv.DictReader misaligns every one of those
+     rows and puts `bytes` into `hit`. Do not replace this with DictReader.
+
+  4. `md_animal_conf` IS THE MAXIMUM OVER ALL DETECTIONS, not the top one.
+     Scoring on the first detection only understates recall whenever
+     MegaDetector puts a person or vehicle box above the animal box.
+
+  5. `--only animals` RUNS THE 524 POSITIVE FRAMES ALONE. Wall clock per image
+     on the runner has been an open question for five sessions and nothing can
+     be planned until it is measured. Run 200 images first, read the number the
+     summarise step prints, then decide how to shard the other 3,900.
 
 Filename conventions assumed (both are tolerated, and unparseable names are
 still processed, just with blank metadata columns):
@@ -32,6 +61,7 @@ burnt_in is left blank for satara, whose burnt-in clock is not usable.
 
 import argparse
 import csv
+import glob
 import json
 import os
 import re
@@ -47,15 +77,101 @@ SAST_OFFSET = timedelta(hours=2)
 BURNT_IN_OFFSET = timedelta(hours=1, minutes=51, seconds=45)
 NO_BURNT_IN = {"satara"}
 
+# Matches watch.py: local = utc + tz, night is 18:00 to 06:00 local, tz is +2
+# at all three cameras. Recomputed here rather than read from the log so that a
+# frame with no log row still gets a mode.
+TZ_HOURS = 2
+NIGHT_FROM, NIGHT_TO = 18, 6
+
 NAME_RE = re.compile(
     r"^(?P<hhmmss>\d{6})_p(?P<preset>\d+)_blob(?P<blob>\d+)"
     r"(?:_f(?P<fill>[0-9.]+))?\.jpe?g$",
     re.IGNORECASE,
 )
 
+DEFAULT_LABELS = os.path.join("tools", "ground_truth.txt")
+
+
+# --------------------------------------------------------------------------
+# ground truth
+# --------------------------------------------------------------------------
+
+def load_labels(path):
+    """Return the set of '<cam>/<date>/<hhmmss>' keys confirmed to hold an
+    animal. Missing file is not fatal: the harness still runs, it just cannot
+    score."""
+    keys = set()
+    if not path or not os.path.exists(path):
+        return keys
+    with open(path, encoding="utf-8") as fp:
+        for line in fp:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            keys.add(line.replace("\\", "/"))
+    return keys
+
+
+def frame_key(row):
+    if not (row["cam"] and row["date"] and row["utc"]):
+        return ""
+    return f"{row['cam']}/{row['date']}/{row['utc'][11:].replace(':', '')}"
+
+
+# --------------------------------------------------------------------------
+# logs
+# --------------------------------------------------------------------------
+
+def load_logs(logs_root="logs"):
+    """(cam, 'YYYY-MM-DD HH:MM:SS') -> log row dict.
+
+    Parsed BY FIELD COUNT. See note 3 in the module docstring: three files
+    contain rows wider than their own header and a header-driven parser
+    silently misaligns them.
+    """
+    schemas = {}
+    files = sorted(glob.glob(os.path.join(logs_root, "*", "*.csv")))
+    for f in files:
+        try:
+            with open(f, newline="", encoding="utf-8") as fp:
+                hdr = next(csv.reader(fp), [])
+        except OSError:
+            continue
+        if hdr and hdr[0] == "utc":
+            schemas.setdefault(len(hdr), hdr)
+
+    out = {}
+    mixed = 0
+    for f in files:
+        cam = os.path.basename(os.path.dirname(f))
+        try:
+            with open(f, newline="", encoding="utf-8") as fp:
+                rd = csv.reader(fp)
+                hdr = next(rd, [])
+                for raw in rd:
+                    if not raw:
+                        continue
+                    schema = schemas.get(len(raw))
+                    if schema is None:
+                        continue
+                    if len(raw) != len(hdr):
+                        mixed += 1
+                    row = dict(zip(schema, raw))
+                    out[(cam, row.get("utc", ""))] = row
+        except OSError:
+            continue
+    if mixed:
+        print(f"log parser: {mixed} rows were wider than their file header "
+              f"and were realigned by field count")
+    return out
+
+
+# --------------------------------------------------------------------------
+# paths
+# --------------------------------------------------------------------------
 
 def parse_path(path):
-    """Pull cam, date, utc, preset, blob, fill out of an archive path."""
+    """Pull cam, date, utc, mode, preset, blob, fill out of an archive path."""
     parts = path.replace("\\", "/").split("/")
     out = {
         "path": path,
@@ -65,6 +181,7 @@ def parse_path(path):
         "utc": "",
         "sast": "",
         "burnt_in": "",
+        "mode": "",
         "preset": "",
         "logged_blob": "",
         "logged_fill": "",
@@ -93,13 +210,20 @@ def parse_path(path):
         out["sast"] = (ts + SAST_OFFSET).strftime("%Y-%m-%d %H:%M:%S")
         if out["cam"] not in NO_BURNT_IN:
             out["burnt_in"] = (ts + BURNT_IN_OFFSET).strftime("%Y-%m-%d %H:%M:%S")
+        local = (ts.hour + TZ_HOURS) % 24
+        out["mode"] = "night" if (local >= NIGHT_FROM or local < NIGHT_TO) else "day"
     return out
 
+
+# --------------------------------------------------------------------------
+# list
+# --------------------------------------------------------------------------
 
 def cmd_list(args):
     cameras = [c.strip() for c in args.cameras.split(",") if c.strip()]
     roots = [r.strip() for r in args.roots.split(",") if r.strip()]
     dates = [d.strip() for d in args.dates.split(",") if d.strip()]
+    labels = load_labels(args.labels)
 
     found = []
     for root in roots:
@@ -120,6 +244,17 @@ def cmd_list(args):
 
     found.sort()
     total = len(found)
+
+    if args.only in ("animals", "empties"):
+        if not labels:
+            print(f"--only {args.only} requested but no labels were loaded "
+                  f"from {args.labels}; scanning everything instead")
+        else:
+            want_animal = args.only == "animals"
+            found = [p for p in found
+                     if (frame_key(parse_path(p)) in labels) == want_animal]
+
+    selected_before_slice = len(found)
     if args.offset:
         found = found[args.offset:]
     if args.limit:
@@ -130,25 +265,37 @@ def cmd_list(args):
             fp.write(os.path.abspath(p) + "\n")
 
     unparsed = sum(1 for p in found if not parse_path(p)["utc"])
-    print(f"archive total: {total}")
-    print(f"selected:      {len(found)}")
+    print(f"archive total:         {total}")
+    print(f"after --only {args.only:8s}: {selected_before_slice}")
+    print(f"selected:              {len(found)}")
     print(f"unparseable filenames: {unparsed}")
-    by_cam = {}
+    print(f"labels loaded:         {len(labels)} animal frames")
+    by = {}
     for p in found:
-        by_cam[parse_path(p)["cam"] or "?"] = by_cam.get(parse_path(p)["cam"] or "?", 0) + 1
-    for cam, n in sorted(by_cam.items()):
-        print(f"  {cam}: {n}")
+        r = parse_path(p)
+        by[(r["cam"] or "?", r["mode"] or "?")] = \
+            by.get((r["cam"] or "?", r["mode"] or "?"), 0) + 1
+    for k, n in sorted(by.items()):
+        print(f"  {k[0]} {k[1]}: {n}")
 
+
+# --------------------------------------------------------------------------
+# summarise
+# --------------------------------------------------------------------------
 
 FIELDS = [
-    "path", "source", "cam", "date", "utc", "sast", "burnt_in",
-    "preset", "logged_blob", "logged_fill",
+    "path", "source", "cam", "date", "utc", "sast", "burnt_in", "mode",
+    "label",
+    "preset", "logged_blob", "logged_fill", "logged_hit",
+    "logged_dist", "logged_nblobs", "logged_n",
     "prediction", "prediction_score", "prediction_source",
     "top1_class", "top1_score",
-    "n_detections", "md_label", "md_conf",
+    "n_detections", "md_label", "md_conf", "md_animal_conf",
     "md_bw_blocks", "md_bh_blocks", "md_cx", "md_cy", "md_area_blocks",
     "failures", "model_version",
 ]
+
+THRESHOLDS = (0.1, 0.2, 0.5)
 
 
 def cmd_summarise(args):
@@ -156,9 +303,24 @@ def cmd_summarise(args):
         data = json.load(fp)
     preds = data.get("predictions", [])
 
+    labels = load_labels(args.labels)
+    logs = load_logs(args.logs)
+
     rows = []
     for p in preds:
         row = parse_path(p.get("filepath", ""))
+        key = frame_key(row)
+        if not labels:
+            row["label"] = ""
+        else:
+            row["label"] = "animal" if key in labels else "empty"
+
+        lg = logs.get((row["cam"], row["utc"]))
+        row["logged_hit"] = lg.get("hit", "") if lg else ""
+        row["logged_dist"] = lg.get("dist", "") if lg else ""
+        row["logged_nblobs"] = lg.get("nblobs", "") if lg else ""
+        row["logged_n"] = lg.get("n", "") if lg else ""
+
         row["prediction"] = p.get("prediction", "")
         row["prediction_score"] = p.get("prediction_score", "")
         row["prediction_source"] = p.get("prediction_source", "")
@@ -172,14 +334,24 @@ def cmd_summarise(args):
         row["top1_score"] = scores[0] if scores else ""
 
         dets = p.get("detections") or []
-        # Detections above 0.01 only, already sorted by confidence.
         row["n_detections"] = len(dets)
+
+        # Maximum confidence over ALL detections labelled `animal`, not the
+        # top detection only. See note 4 in the module docstring.
+        animal_confs = []
+        for d in dets:
+            if d.get("label") == "animal":
+                try:
+                    animal_confs.append(float(d.get("conf", 0)))
+                except (TypeError, ValueError):
+                    pass
+        row["md_animal_conf"] = max(animal_confs) if animal_confs else 0.0
+
         if dets:
             d = dets[0]
             row["md_label"] = d.get("label", "")
             row["md_conf"] = d.get("conf", "")
-            box = d.get("bbox") or [0, 0, 0, 0]
-            x, y, w, h = box
+            x, y, w, h = (d.get("bbox") or [0, 0, 0, 0])
             bw = round(w * GRID_W, 1)
             bh = round(h * GRID_H, 1)
             row["md_bw_blocks"] = bw
@@ -200,34 +372,122 @@ def cmd_summarise(args):
         w.writeheader()
         w.writerows(rows)
 
-    # Summary to the Actions log. This is the whole point of the run.
     n = len(rows)
     print(f"\nrows: {n}  ->  {args.out}")
     if args.wall_seconds and n:
-        print(f"wall clock: {args.wall_seconds}s   "
+        print(f"\nWALL CLOCK: {args.wall_seconds:.0f}s for {n} images = "
               f"{args.wall_seconds / n:.2f} s/image")
+        print(f"  4,109 archived frames would take "
+              f"{args.wall_seconds / n * 4109 / 60:.0f} minutes at this rate.")
+        print(f"  A day of Kruger daylight hits (about 137) would take "
+              f"{args.wall_seconds / n * 137 / 60:.1f} minutes.")
 
-    def tally(key, rowset):
+    scored = [r for r in rows if r["label"] in ("animal", "empty")]
+    if not scored:
+        print("\nNo ground-truth labels loaded, so no scoring. "
+              f"Expected them at {args.labels}.")
+        _tallies(rows)
+        return
+
+    _score(scored, args)
+    _tallies(rows)
+
+
+def _rate(hits, total):
+    return f"{hits:4d}/{total:<4d} {hits / total * 100:5.1f}%" if total else "   -/-        "
+
+
+def _score(rows, args):
+    """Recall and false positives in the same table, which is the whole point."""
+    groups = sorted({(r["cam"], r["mode"]) for r in rows})
+
+    print("\n" + "=" * 78)
+    print("STAGE 2 ALONE: does SpeciesNet see an animal?")
+    print("An 'animal' detection at or above the confidence threshold.")
+    print("=" * 78)
+    for t in THRESHOLDS:
+        print(f"\n-- MegaDetector `animal` at conf >= {t} --")
+        print(f"  {'cam / mode':18}{'recall on animal frames':>26}"
+              f"{'fires on empty frames':>26}")
+        for g in groups:
+            pos = [r for r in rows if (r["cam"], r["mode"]) == g and r["label"] == "animal"]
+            neg = [r for r in rows if (r["cam"], r["mode"]) == g and r["label"] == "empty"]
+            rp = sum(1 for r in pos if float(r["md_animal_conf"] or 0) >= t)
+            rn = sum(1 for r in neg if float(r["md_animal_conf"] or 0) >= t)
+            print(f"  {g[0] + ' ' + g[1]:18}{_rate(rp, len(pos)):>26}{_rate(rn, len(neg)):>26}")
+
+    print("\n" + "=" * 78)
+    print("STAGE 1 AND STAGE 2 TOGETHER, at conf >= 0.2")
+    print("Rows where the log row was found, so `logged_hit` is known.")
+    print("=" * 78)
+    t = 0.2
+    print(f"  {'cam / mode':18}{'label':8}{'s1 only':>9}{'s2 only':>9}"
+          f"{'both':>7}{'neither':>9}")
+    for g in groups:
+        for lab in ("animal", "empty"):
+            sub = [r for r in rows
+                   if (r["cam"], r["mode"]) == g and r["label"] == lab
+                   and r["logged_hit"] in ("0", "1")]
+            if not sub:
+                continue
+            def cell(s1, s2):
+                return sum(1 for r in sub
+                           if (r["logged_hit"] == "1") == s1
+                           and (float(r["md_animal_conf"] or 0) >= t) == s2)
+            print(f"  {g[0] + ' ' + g[1]:18}{lab:8}"
+                  f"{cell(True, False):9}{cell(False, True):9}"
+                  f"{cell(True, True):7}{cell(False, False):9}")
+
+    print("\n  READ IT LIKE THIS. 's2 only' on an animal row is an animal the")
+    print("  geometric detector missed and SpeciesNet would have found: that is")
+    print("  the recall case for wiring stage 2 in. 'both' on an EMPTY row is a")
+    print("  false positive stage 2 does NOT filter, which is the number that")
+    print("  decides whether opening the daylight gates is affordable.")
+
+    print("\n" + "=" * 78)
+    print("WHAT IT CALLS THE ANIMALS (label=animal, conf >= 0.2)")
+    print("=" * 78)
+    tal = {}
+    for r in rows:
+        if r["label"] == "animal" and float(r["md_animal_conf"] or 0) >= 0.2:
+            k = (r["cam"], r["prediction"] or "(blank)")
+            tal[k] = tal.get(k, 0) + 1
+    for k, v in sorted(tal.items(), key=lambda kv: (kv[0][0], -kv[1]))[:60]:
+        print(f"  {k[0]:10}{v:5d}  {k[1]}")
+
+    if args.score_out:
+        with open(args.score_out, "w", newline="", encoding="utf-8") as fp:
+            w = csv.writer(fp)
+            w.writerow(["cam", "mode", "label", "n_frames", "threshold",
+                        "md_animal_hits", "share", "stage1_hits"])
+            for g in groups:
+                for lab in ("animal", "empty"):
+                    sub = [r for r in rows
+                           if (r["cam"], r["mode"]) == g and r["label"] == lab]
+                    if not sub:
+                        continue
+                    s1 = sum(1 for r in sub if r["logged_hit"] == "1")
+                    for t in THRESHOLDS:
+                        k = sum(1 for r in sub
+                                if float(r["md_animal_conf"] or 0) >= t)
+                        w.writerow([g[0], g[1], lab, len(sub), t, k,
+                                    round(k / len(sub), 4), s1])
+        print(f"\nscores -> {args.score_out}")
+
+
+def _tallies(rows):
+    def tally(key):
         out = {}
-        for r in rowset:
+        for r in rows:
             out[r.get(key) or "(blank)"] = out.get(r.get(key) or "(blank)", 0) + 1
         return sorted(out.items(), key=lambda kv: -kv[1])
 
     print("\n-- final prediction, all rows --")
-    for k, v in tally("prediction", rows)[:30]:
+    for k, v in tally("prediction")[:30]:
         print(f"  {v:5d}  {k}")
 
-    print("\n-- any animal detection at conf >= 0.2, by camera --")
-    for cam in sorted({r["cam"] for r in rows}):
-        sub = [r for r in rows if r["cam"] == cam]
-        pos = [r for r in sub
-               if r["md_label"] == "animal"
-               and r["md_conf"] not in ("", None)
-               and float(r["md_conf"]) >= 0.2]
-        print(f"  {cam}: {len(pos)} of {len(sub)}")
-
     print("\n-- failures --")
-    for k, v in tally("failures", rows)[:10]:
+    for k, v in tally("failures")[:10]:
         print(f"  {v:5d}  {k}")
 
 
@@ -241,12 +501,18 @@ def main():
     p1.add_argument("--dates", default="")
     p1.add_argument("--limit", type=int, default=0)
     p1.add_argument("--offset", type=int, default=0)
+    p1.add_argument("--only", default="all",
+                    choices=["all", "animals", "empties"])
+    p1.add_argument("--labels", default=DEFAULT_LABELS)
     p1.add_argument("--out", default="filepaths.txt")
     p1.set_defaults(func=cmd_list)
 
     p2 = sub.add_parser("summarise")
     p2.add_argument("--predictions", default="predictions.json")
     p2.add_argument("--out", default="identify_test.csv")
+    p2.add_argument("--score-out", default="identify_score.csv")
+    p2.add_argument("--labels", default=DEFAULT_LABELS)
+    p2.add_argument("--logs", default="logs")
     p2.add_argument("--wall-seconds", type=float, default=0)
     p2.set_defaults(func=cmd_summarise)
 
