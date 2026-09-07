@@ -1,0 +1,103 @@
+name: prune
+
+# RETENTION FOR THE ARCHIVE, driven by the stage 2 score. Manual dispatch only,
+# and DRY RUN BY DEFAULT: it prints and uploads the deletion list and deletes
+# nothing until you set apply=true.
+#
+# WHY THIS WORKS. watch.yml checks out with fetch-depth 1, so the checkout
+# downloads the CURRENT TREE and not the history. Deleting an old JPEG cuts
+# checkout time immediately even though the blob stays in history forever.
+# Repository storage keeps growing; storage does not cost coverage, checkout
+# does, and checkout overhead is what erodes the monitoring duty cycle.
+#
+# WHAT IT WILL NEVER DELETE: anything younger than keep_days, anything stage 2
+# scored keep=1, anything in tools/ground_truth.txt or tools/priority.txt, and
+# anything with no species row at all. Run identify first; an unscored frame is not a
+# low-scoring one.
+#
+# RUN IT DRY FIRST AND READ THE ARTIFACT. The deletion list, and with
+# stage_files=true the JPEGs themselves, are uploaded before anything is
+# removed, with 90 days of retention.
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep_days:
+        description: 'Never delete anything younger than this many days'
+        required: false
+        default: '21'
+      roots:
+        description: 'Archive roots to consider'
+        required: false
+        default: 'hits,frames'
+      stage_files:
+        description: 'Upload the doomed JPEGs as an artifact first (true/false)'
+        required: false
+        default: 'true'
+      apply:
+        description: 'Actually delete and commit. Leave false for a dry run.'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: prune
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Work out what is deletable
+        run: |
+          STAGE=""
+          if [ "${{ inputs.stage_files }}" = "true" ]; then STAGE="--stage staged"; fi
+          python tools/prune.py \
+            --roots "${{ inputs.roots || 'hits,frames' }}" \
+            --keep-days "${{ inputs.keep_days || '21' }}" \
+            --species species \
+            --labels tools/ground_truth.txt \
+            --priority tools/priority.txt \
+            --list-out pruned.txt \
+            $STAGE
+
+      - name: Upload the deletion list and the staged frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pruned-${{ github.run_id }}
+          path: |
+            pruned.txt
+            staged
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Delete and commit
+        if: inputs.apply == 'true'
+        run: |
+          python tools/prune.py \
+            --roots "${{ inputs.roots || 'hits,frames' }}" \
+            --keep-days "${{ inputs.keep_days || '21' }}" \
+            --species species \
+            --labels tools/ground_truth.txt \
+            --priority tools/priority.txt \
+            --list-out pruned.txt \
+            --apply
+          git config user.name  "sanparks-watch"
+          git config user.email "actions@github.com"
+          git add -A hits frames 2>/dev/null || true
+          git diff --cached --quiet && exit 0
+          git commit -m "prune $(date -u +'%F %T')"
+          for i in 1 2 3; do
+            git pull --rebase --autostash && git push && exit 0
+            sleep 5
+          done

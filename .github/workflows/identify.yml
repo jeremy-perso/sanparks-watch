@@ -1,0 +1,151 @@
+name: identify
+
+# STAGE 2 IN PRODUCTION. Scores archived hits with SpeciesNet and writes one
+# row per frame to species/<cam>/YYYYMMDD.csv.
+#
+# It does not touch watch.py, cameras.py, selftest.py or watch.yml, and its
+# only writes are under species/. Deleting this workflow and tools/identify.py
+# leaves detection exactly as it was.
+#
+# THE THRESHOLD IS PER MODE: 0.30 in daylight, 0.15 at night, decided with
+# Jeremy 7 Sep 2026. Night is cheap and daylight is not. Every run prints a
+# THRESHOLD WATCH block showing what each candidate threshold would have kept,
+# so reverting is one input change and needs no re-scoring. If the night archive
+# grows faster than it is worth, raise keep_conf_night and leave daylight alone.
+#
+# WHY THIS EXISTS AND WHY IT IS WORTH MORE THAN A THRESHOLD. Measured 7 Sep
+# 2026 on 67 eye-confirmed mammal frames: the geometric detector catches 20 of
+# them, SpeciesNet catches 62. On 3,702 eye-confirmed empty frames it fires on
+# 7% at Nossob night and 3% at Talamati night. It is a better animal detector
+# than the gates and a good empty filter at night.
+#
+# COST. 2.75 to 3.64 s/image measured over three runs on the standard CPU
+# runner, so about 200 hits a day is 10 to 12 minutes. Cold caches add 13
+# minutes for the 214 MB weights and the pip install; warm they add about 70 s.
+#
+# CONCURRENCY. Its own group, so it can never cancel or queue behind the
+# watcher. Both commit to the same repo, hence the pull --rebase retry loop at
+# the end, copied from watch.yml.
+
+on:
+  schedule:
+    # 02:40 UTC = 04:40 local. After the night's activity and before the
+    # morning peak, and off the */5 watcher grid so the two rarely collide.
+    - cron: "40 2 * * *"
+  workflow_dispatch:
+    inputs:
+      dates:
+        description: 'Comma-separated YYYYMMDD, or blank for every unscored frame'
+        required: false
+        default: ''
+      roots:
+        description: 'Archive roots to score (hits is the detection stream)'
+        required: false
+        default: 'hits'
+      max_images:
+        description: 'Cap for one run. Newest first, so a cap never starves last night.'
+        required: false
+        default: '600'
+      keep_conf_day:
+        description: 'Daylight threshold for keep=1. 0.30 is measured; do not lower it, daylight empties are expensive.'
+        required: false
+        default: '0.30'
+      keep_conf_night:
+        description: 'Night threshold. 0.15 buys 14 priority frames cheaply. RAISE THIS FIRST if the night archive grows too fast.'
+        required: false
+        default: '0.15'
+      batch_size:
+        description: 'Classifier batch size'
+        required: false
+        default: '8'
+
+concurrency:
+  group: identify
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  identify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache model weights
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/kagglehub
+            ~/.cache/huggingface
+          key: speciesnet-weights-v1
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: identify-pip-${{ runner.os }}-v1
+
+      - name: Install CPU torch and SpeciesNet
+        run: |
+          python -m pip install --upgrade pip
+          # CPU-only wheels. The default wheels pull ~2.5 GB of CUDA we cannot use.
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r tools/requirements-identify.txt
+
+      - name: Build the list of unscored frames
+        id: list
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY:      ${{ secrets.KAGGLE_KEY }}
+        run: |
+          python tools/identify.py list \
+            --roots "${{ inputs.roots || 'hits' }}" \
+            --dates "${{ inputs.dates }}" \
+            --max-images "${{ inputs.max_images || '600' }}" \
+            --species species \
+            --out filepaths.txt
+          echo "count=$(wc -l < filepaths.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Run SpeciesNet
+        if: steps.list.outputs.count != '0'
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY:      ${{ secrets.KAGGLE_KEY }}
+        run: |
+          START=$(date +%s)
+          python -m speciesnet.scripts.run_model \
+            --filepaths_txt filepaths.txt \
+            --predictions_json predictions.json \
+            --country ZAF \
+            --batch_size "${{ inputs.batch_size || '8' }}" \
+            --bypass_prompts \
+            --noprogress_bars
+          echo "Wall clock: $(( $(date +%s) - START ))s for ${{ steps.list.outputs.count }} images"
+
+      - name: Write the species rows
+        if: steps.list.outputs.count != '0'
+        run: |
+          python tools/identify.py record \
+            --predictions predictions.json \
+            --species species \
+            --keep-conf-day "${{ inputs.keep_conf_day || '0.30' }}" \
+            --keep-conf-night "${{ inputs.keep_conf_night || '0.15' }}"
+
+      - name: Commit species logs
+        if: always()
+        run: |
+          git config user.name  "sanparks-watch"
+          git config user.email "actions@github.com"
+          git add -A species 2>/dev/null || true
+          git diff --cached --quiet && exit 0
+          git commit -m "identify $(date -u +'%F %T')"
+          for i in 1 2 3; do
+            git pull --rebase --autostash && git push && exit 0
+            sleep 5
+          done
