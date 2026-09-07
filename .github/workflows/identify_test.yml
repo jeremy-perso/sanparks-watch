@@ -33,7 +33,7 @@ on:
         required: false
         default: 'hits,frames'
       only:
-        description: 'Which labelled set: all | animals | empties'
+        description: 'Which set: all | animals | empties | reviewed'
         required: false
         default: 'animals'
       dates:
@@ -41,9 +41,9 @@ on:
         required: false
         default: ''
       limit:
-        description: 'Max images this run (0 = all). USE 200 ON THE FIRST RUN.'
+        description: 'Max images this run (0 = all)'
         required: false
-        default: '200'
+        default: '0'
       offset:
         description: 'Skip this many images first (for sharding)'
         required: false
@@ -114,6 +114,7 @@ jobs:
             --dates "${{ inputs.dates }}" \
             --only "${{ inputs.only }}" \
             --labels tools/ground_truth.txt \
+            --reviewed tools/reviewed.txt \
             --limit "${{ inputs.limit }}" \
             --offset "${{ inputs.offset }}" \
             --out filepaths.txt
@@ -141,6 +142,7 @@ jobs:
           python tools/identify_test.py summarise \
             --predictions predictions.json \
             --labels tools/ground_truth.txt \
+            --reviewed tools/reviewed.txt \
             --logs logs \
             --out identify_test.csv \
             --score-out identify_score.csv \
