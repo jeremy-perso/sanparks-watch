@@ -1,31 +1,53 @@
 name: draw-boxes
 
-# Draws the logged blob box onto the archived JPEGs and uploads them as an
-# artifact, so "is the box on the animal" can be answered by looking.
+# Draws the logged blob box (RED) and MegaDetector's box (GREEN) onto the
+# archived JPEGs and uploads them as an artifact, so "is the box on the animal"
+# can be answered by looking.
 #
 # READ-ONLY. Does not commit, does not push, does not touch watch.py,
 # cameras.py, selftest.py or watch.yml. Its only output is an artifact.
 #
-# TO USE THE MEGADETECTOR BOX TOO: download identify_test.csv from an
-# identify-test run, commit it as tools/identify_test.csv, and leave
-# identify_csv at its default. Without it the green box is simply absent and
-# everything else still works.
+# DEFAULT SET IS `unreviewed`: every archived frame that is in neither
+# ground_truth.txt nor reviewed.txt, which is exactly everything archived since
+# the last review pass. It empties itself when the new keys are appended to the
+# label files. `animals`, `empties` and `reviewed` all read those frozen files
+# and therefore cannot see a new frame at all.
+#
+# THE GREEN BOX COMES FROM species/ BY DEFAULT, the daily production output of
+# tools/identify.py. No file needs committing by hand. The older
+# tools/identify_test.csv can still be added to the list, comma-separated.
 
 on:
   workflow_dispatch:
     inputs:
       only:
-        description: 'Which set: animals | empties | reviewed | all'
+        description: 'Which set: unreviewed | animals | empties | reviewed | all'
         required: false
-        default: 'animals'
+        default: 'unreviewed'
+      since:
+        description: 'Earliest day YYYYMMDD, inclusive, or blank'
+        required: false
+        default: ''
+      until:
+        description: 'Latest day YYYYMMDD, inclusive, or blank'
+        required: false
+        default: ''
       dates:
-        description: 'Comma-separated YYYYMMDD, or blank for all'
+        description: 'Exact comma-separated YYYYMMDD, or blank. Overrides nothing, applied on top of since/until'
         required: false
         default: ''
       cameras:
         description: 'Comma-separated camera dirs'
         required: false
         default: 'nossob,talamati,satara'
+      roots:
+        description: 'Which archive dirs: hits, frames, or both'
+        required: false
+        default: 'hits'
+      md_min:
+        description: 'Triage floor on MD confidence, 0 = off. A set drawn with this is biased toward stage 2 and must not price a stage 1 gate'
+        required: false
+        default: '0'
       limit:
         description: 'Max frames this run (0 = all)'
         required: false
@@ -35,9 +57,9 @@ on:
         required: false
         default: '0'
       identify_csv:
-        description: 'Path to an identify_test.csv for the green MD box, or blank'
+        description: 'Comma-separated paths or globs for the green box'
         required: false
-        default: 'tools/identify_test.csv'
+        default: 'species/*/*.csv'
 
 concurrency:
   group: draw-boxes
@@ -63,8 +85,12 @@ jobs:
         run: |
           python tools/draw_boxes.py \
             --only "${{ inputs.only }}" \
+            --since "${{ inputs.since }}" \
+            --until "${{ inputs.until }}" \
             --dates "${{ inputs.dates }}" \
             --cameras "${{ inputs.cameras }}" \
+            --roots "${{ inputs.roots }}" \
+            --md-min "${{ inputs.md_min }}" \
             --limit "${{ inputs.limit }}" \
             --offset "${{ inputs.offset }}" \
             --identify-csv "${{ inputs.identify_csv }}" \
