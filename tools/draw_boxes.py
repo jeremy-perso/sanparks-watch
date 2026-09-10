@@ -46,6 +46,19 @@ the 4 September schema rotation carry rows wider than their own header
 (logs/nossob/20260831.csv, logs/nossob/20260901.csv, logs/talamati/20260901.csv)
 and a header-driven parser silently puts `bytes` into `hit` on 2,686 of them.
 
+THE GREEN BOX IS MATCHED TO THE COPY BEING DRAWN. Changed 10 Sep 2026. The
+same instant can exist twice, as the full-resolution hits/ JPEG and the 900 px
+frames/ copy, and SpeciesNet scores each separately. MegaDetector moves its box
+or its confidence between the two on most such pairs (19 measured 10 Sep), so a
+key is (cam, utc, source). A frame is drawn with the MD box of its own copy;
+only when that copy was never scored does it fall back to the other copy's
+best box, and the caption then says "MD from <source> copy".
+
+LABELS SIT OUTSIDE THEIR BOXES. Changed 10 Sep 2026. "blob" goes above the red
+box and "MD" below the green one, flipping side only when the frame edge
+forces it. Drawn inside a 2 to 4 block box they covered exactly what was being
+judged, twice on 10 Sep.
+
 --md-min IS A TRIAGE CONTROL AND NOT A SAMPLING ONE. It keeps only frames whose
 MegaDetector confidence clears a floor, which is useful for cutting a 400-frame
 day down to something reviewable. Any set drawn with it is biased toward stage 2
@@ -109,34 +122,73 @@ def expand(spec):
 
 
 def load_md(spec):
-    """(cam, utc) -> (cx, cy, bw_blocks, bh_blocks, conf, label, keep, keep_conf).
+    """(cam, utc, source) -> (cx, cy, bw_blocks, bh_blocks, conf, label, keep,
+    keep_conf, source), plus (cam, utc, "") -> the best box over every source.
 
     Reads any number of identify outputs: the daily species/<cam>/<date>.csv
     written by tools/identify.py, and the older hand-committed
-    tools/identify_test.csv. Highest md_animal_conf wins on a repeated key.
+    tools/identify_test.csv. `source` is the archive root the scored JPEG came
+    from (hits or frames); a file without that column files under "" only.
+    Highest md_animal_conf wins on a repeated key.
     """
     out, files = {}, expand(spec)
+
+    def put(key, val):
+        prev = out.get(key)
+        if prev is None or val[4] > prev[4]:
+            out[key] = val
+
+    # A copy that was scored keeps its own verdict even when it has no box
+    # worth drawing (conf under 0.05 or no coordinates): the frame is then drawn
+    # with no green box rather than borrowing the other copy's, and --md-min
+    # judges it on its own confidence. Only the "" fallback key requires a box.
     for f in files:
         for r in csv.DictReader(open(f, newline="", encoding="utf-8")):
             try:
                 conf = float(r.get("md_animal_conf") or 0)
-                if conf < 0.05 or not r.get("md_cx"):
-                    continue
-                key = (r["cam"], r["utc"])
-                prev = out.get(key)
-                if prev is not None and prev[4] >= conf:
-                    continue
-                out[key] = (float(r["md_cx"]), float(r["md_cy"]),
-                            float(r["md_bw_blocks"]), float(r["md_bh_blocks"]),
-                            conf, r.get("prediction_common", ""),
-                            r.get("keep", ""), r.get("keep_conf", ""))
+                src = (r.get("source") or "").strip()
+                tail = (conf, r.get("prediction_common", ""),
+                        r.get("keep", ""), r.get("keep_conf", ""), src)
+                drawable = conf >= 0.05 and bool(r.get("md_cx"))
+                geo = ((float(r["md_cx"]), float(r["md_cy"]),
+                        float(r["md_bw_blocks"]), float(r["md_bh_blocks"]))
+                       if drawable else (None, None, None, None))
+                val = geo + tail
+                if src:
+                    put((r["cam"], r["utc"], src), val)
+                if drawable:
+                    put((r["cam"], r["utc"], ""), val)
             except (ValueError, KeyError):
                 continue
-    print(f"MD boxes: {len(out)} keys from {len(files)} identify file(s)")
+    n = len({k[:2] for k, v in out.items() if v[0] is not None})
+    print(f"MD boxes: {n} keys with a drawable box from {len(files)} identify file(s)")
     if spec and not files:
         print("MD boxes: none of the --identify-csv paths matched a file, "
               "the green box will be absent")
     return out
+
+
+def md_for(md, cam, utc, root):
+    """The MD box scored on this very copy, else the best box of any copy."""
+    own = md.get((cam, utc, root))
+    if own is not None:
+        return own
+    return md.get((cam, utc, ""))
+
+
+def label_xy(d, text, fnt, x0, y0, x1, y1, W, H, above):
+    """Top-left for a label hugging the box from outside, clamped to the frame."""
+    tb = d.textbbox((0, 0), text, font=fnt)
+    tw, th = tb[2] - tb[0], tb[3] - tb[1]
+    gap = 3
+    ya, yb = y0 - th - gap - tb[1], y1 + gap - tb[1]
+    fits_a, fits_b = ya + tb[1] >= 0, yb + tb[1] + th <= H
+    if above:
+        y = ya if fits_a else (yb if fits_b else y0 + gap - tb[1])
+    else:
+        y = yb if fits_b else (ya if fits_a else y1 - th - gap - tb[1])
+    x = min(max(2, x0), max(2, W - tw - 2))
+    return x, y
 
 
 def box(cx, cy, bw, bh, W, H):
@@ -153,7 +205,7 @@ def font(size):
     return ImageFont.load_default()
 
 
-def annotate(src, dst, row, md, label):
+def annotate(src, dst, row, md, label, root=""):
     im = Image.open(src).convert("RGB")
     W, H = im.size
     strip = max(34, H // 14)
@@ -175,7 +227,9 @@ def annotate(src, dst, row, md, label):
     if None not in (cx, cy, bw, bh) and bw > 0 and bh > 0:
         x0, y0, x1, y1 = box(cx, cy, bw, bh, W, H)
         d.rectangle([x0, y0, x1, y1], outline=RED, width=lw)
-        d.text((max(2, x0 + 3), max(2, y0 + 3)), "blob", fill=RED, font=font(max(12, W // 60)))
+        f1 = font(max(12, W // 60))
+        d.text(label_xy(d, "blob", f1, x0, y0, x1, y1, W, H, above=True),
+               "blob", fill=RED, font=f1)
         bits.append(f"blob {num('blob', 0):.0f} at {bw:.0f}x{bh:.0f} blocks"
                     f"  fill {num('fill', 0):.2f}  dom {num('dom', 0):.2f}"
                     f"  nblobs {num('nblobs', 0):.0f}  dist {num('dist', 0):.1f}"
@@ -184,13 +238,18 @@ def annotate(src, dst, row, md, label):
     else:
         bits.append("no CSV row for this frame, nothing to draw")
 
-    if md:
-        mcx, mcy, mbw, mbh, conf, common, keep, keep_conf = md
+    if md and md[0] is None:
+        bits.append(f"MD {md[4]:.2f} on this copy, no box to draw")
+    elif md:
+        mcx, mcy, mbw, mbh, conf, common, keep, keep_conf, msrc = md
         x0, y0, x1, y1 = box(mcx, mcy, mbw, mbh, W, H)
         d.rectangle([x0, y0, x1, y1], outline=GREEN, width=lw)
-        d.text((max(2, x0 + 3), max(2, y1 - 20)), "MD", fill=GREEN, font=font(max(12, W // 60)))
+        f1 = font(max(12, W // 60))
+        d.text(label_xy(d, "MD", f1, x0, y0, x1, y1, W, H, above=False),
+               "MD", fill=GREEN, font=f1)
         tail = f"  stage2 {'KEEP' if keep == '1' else 'drop'} at {keep_conf}" if keep else ""
-        bits.append(f"MD {conf:.2f} {mbw:.1f}x{mbh:.1f} blocks {common}{tail}")
+        other = f" from {msrc} copy" if msrc and msrc != root else ""
+        bits.append(f"MD{other} {conf:.2f} {mbw:.1f}x{mbh:.1f} blocks {common}{tail}")
     else:
         bits.append("no MD box for this frame")
 
@@ -266,7 +325,7 @@ def main():
                         continue
                     utc = f"{day[:4]}-{day[4:6]}-{day[6:]} {hh[:2]}:{hh[2:4]}:{hh[4:]}"
                     if a.md_min > 0:
-                        mm = md.get((cam, utc))
+                        mm = md_for(md, cam, utc, root)
                         if mm is None or mm[4] < a.md_min:
                             dropped_md += 1
                             continue
@@ -291,13 +350,13 @@ def main():
         row = logs.get((cam, utc))
         if row is None:
             norow += 1
-        mdbox = md.get((cam, utc))
+        mdbox = md_for(md, cam, utc, root)
         if mdbox is None:
             nomd += 1
         label = (f"{cam} {utc} UTC  p{m.group('preset')}  {root}/  "
                  f"eye label: {lab}")
         dst = os.path.join(a.out, cam, day, f"{root}_{m.group(0)}")
-        annotate(src, dst, row, mdbox, label)
+        annotate(src, dst, row, mdbox, label, root)
         drawn += 1
     print(f"drew {drawn} into {a.out}/   ({norow} had no CSV row, {nomd} had no MD box)")
 

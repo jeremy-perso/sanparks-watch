@@ -146,6 +146,17 @@ def cmd_list(a):
                     if p and (p["cam"], p["utc"]) not in done:
                         found.append(p)
 
+    # ONE COPY PER INSTANT. Added 10 Sep 2026 with frames/ in the daily roots.
+    # The run's TOP_N capture is often also a hit, so the same second exists as
+    # the full-resolution hits/ JPEG and the 900 px frames/ copy. MegaDetector
+    # gives different answers on the two (19 pairs measured 10 Sep), so scoring
+    # both writes two conflicting rows for one UTC second. The hit wins.
+    hit_keys = {(p["cam"], p["utc"]) for p in found if p["source"] == "hits"}
+    n_all = len(found)
+    found = [p for p in found
+             if p["source"] == "hits" or (p["cam"], p["utc"]) not in hit_keys]
+    twins = n_all - len(found)
+
     # Newest first, so a capped run always covers last night rather than
     # grinding through August again after a long outage.
     found.sort(key=lambda p: p["utc"], reverse=True)
@@ -159,6 +170,8 @@ def cmd_list(a):
 
     print(f"already scored:  {len(done)}")
     print(f"unscored frames: {total}")
+    if twins:
+        print(f"twins skipped:   {twins} frames/ copies of a second already listed as a hit")
     print(f"this run:        {len(found)}")
     if total > len(found):
         print(f"BACKLOG: {total - len(found)} frames left over. Raise "
@@ -277,7 +290,7 @@ def main():
     p1.add_argument("--cameras", default="nossob,talamati,satara")
     p1.add_argument("--roots", default="hits")
     p1.add_argument("--dates", default="")
-    p1.add_argument("--max-images", type=int, default=600)
+    p1.add_argument("--max-images", type=int, default=1000)
     p1.add_argument("--species", default="species")
     p1.add_argument("--out", default="filepaths.txt")
     p1.set_defaults(func=cmd_list)
