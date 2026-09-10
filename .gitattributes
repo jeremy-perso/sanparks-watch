@@ -1,0 +1,4 @@
+# Added 10 Sep 2026. Two watch runs that append to the same day's log must
+# merge by keeping both sets of rows, not conflict. A conflict here used to
+# discard the whole run silently: see the commit step in watch.yml.
+logs/**/*.csv merge=union
