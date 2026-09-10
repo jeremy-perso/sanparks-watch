@@ -178,6 +178,28 @@ jobs:
           path: state
           key: watch-state-${{ github.run_id }}
 
+      # FIXED 10 SEP 2026 AFTER A SILENT TOTAL LOSS. The manual collect=all run
+      # of 13:17 UTC checked out main before the scheduled run's commit 7e30270
+      # (13:17:24) reached it. Both had appended to the same three
+      # logs/<cam>/20260910_<cam>.csv files, so `git pull --rebase` conflicted
+      # on all three. The old loop then failed twice more with "unmerged files"
+      # and ended on `sleep 5`, which exits 0, so the step and the job went
+      # GREEN while every row, frame and hit of that run was discarded with
+      # the runner. 64 archived frames and 13 hits, unrecoverable.
+      #
+      # TWO CHANGES, both tested 10 Sep 2026 on a local bare repo reproducing
+      # the exact conflict:
+      #  1. .gitattributes (new, repo root) sets `merge=union` on
+      #     logs/**/*.csv, so two runs appending to the same day's log merge
+      #     by keeping both sets of rows. Tested with three runs racing on one
+      #     file, and with two runs both creating a new day's file (header kept
+      #     once). Rows can land out of time order; every analysis already
+      #     dedupes and sorts on `utc`.
+      #  2. A failed rebase is aborted before the retry, and if all three
+      #     attempts fail the step now FAILS LOUDLY instead of passing.
+      #
+      # HOW OFTEN THIS HAS HAPPENED BEFORE IS NOT KNOWN. A scheduled run that
+      # hit it would have looked like a gap in the CSV, not an error.
       - name: Commit logs, frames and hits
         if: always()
         run: |
@@ -187,6 +209,9 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "watch $(date -u +'%F %T')"
           for i in 1 2 3; do
-            git pull --rebase --autostash && git push && exit 0
+            if git pull --rebase --autostash && git push; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
             sleep 5
           done
+          echo "::error::push failed after 3 attempts; this run's logs, frames and hits are lost"
+          exit 1
