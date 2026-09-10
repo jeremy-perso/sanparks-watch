@@ -1,7 +1,18 @@
 name: identify
 
-# STAGE 2 IN PRODUCTION. Scores archived hits with SpeciesNet and writes one
-# row per frame to species/<cam>/YYYYMMDD.csv.
+# STAGE 2 IN PRODUCTION. Scores archived hits AND the frames/ TOP_N captures
+# with SpeciesNet and writes one row per frame to species/<cam>/YYYYMMDD.csv.
+#
+# FRAMES/ ADDED TO THE DAILY RUN 10 SEP 2026. With hits only, stage 2 could
+# filter stage 1 but never add a frame, so production recall on the 223-frame
+# priority set was capped by stage 1: 157 of 223 fire and are kept under the
+# live config. Scoring the TOP_N capture of each run as well recovers about 20
+# more (to about 177), measured 10 Sep against priority.txt, counting only
+# frames that are the largest blob of their run, i.e. what TOP_N 1 archives
+# today. Cost about 76 frames/ captures per camera per day, 10 to 14 minutes of
+# SpeciesNet. A frames/ copy of a second that is also a hit is skipped in
+# `list`: the hit is scored, once. max_images rises 600 -> 1000 because 9 Sep
+# alone was 501 hits plus 226 frames/ captures.
 #
 # It does not touch watch.py, cameras.py, selftest.py or watch.yml, and its
 # only writes are under species/. Deleting this workflow and tools/identify.py
@@ -25,7 +36,7 @@ name: identify
 #
 # CONCURRENCY. Its own group, so it can never cancel or queue behind the
 # watcher. Both commit to the same repo, hence the pull --rebase retry loop at
-# the end, copied from watch.yml.
+# the end, copied from watch.yml and fixed with it on 10 Sep 2026.
 
 on:
   schedule:
@@ -39,13 +50,13 @@ on:
         required: false
         default: ''
       roots:
-        description: 'Archive roots to score (hits is the detection stream)'
+        description: 'Archive roots to score. hits,frames since 10 Sep 2026; hits alone makes stage 2 a pure filter on stage 1'
         required: false
-        default: 'hits'
+        default: 'hits,frames'
       max_images:
         description: 'Cap for one run. Newest first, so a cap never starves last night.'
         required: false
-        default: '600'
+        default: '1000'
       keep_conf_day:
         description: 'Daylight threshold for keep=1. 0.30 is measured; do not lower it, daylight empties are expensive.'
         required: false
@@ -105,9 +116,9 @@ jobs:
           KAGGLE_KEY:      ${{ secrets.KAGGLE_KEY }}
         run: |
           python tools/identify.py list \
-            --roots "${{ inputs.roots || 'hits' }}" \
+            --roots "${{ inputs.roots || 'hits,frames' }}" \
             --dates "${{ inputs.dates }}" \
-            --max-images "${{ inputs.max_images || '600' }}" \
+            --max-images "${{ inputs.max_images || '1000' }}" \
             --species species \
             --out filepaths.txt
           echo "count=$(wc -l < filepaths.txt)" >> "$GITHUB_OUTPUT"
@@ -145,7 +156,14 @@ jobs:
           git add -A species 2>/dev/null || true
           git diff --cached --quiet && exit 0
           git commit -m "identify $(date -u +'%F %T')"
+          # FIXED 10 SEP 2026, same defect as watch.yml: the old loop ended on
+          # `sleep 5`, exit 0, so a failed push went green and the species rows
+          # died with the runner. A failed rebase is now aborted before the
+          # retry, and three failures fail the step.
           for i in 1 2 3; do
-            git pull --rebase --autostash && git push && exit 0
+            if git pull --rebase --autostash && git push; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
             sleep 5
           done
+          echo "::error::push failed after 3 attempts; this run's species rows are lost"
+          exit 1
