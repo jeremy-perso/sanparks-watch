@@ -1,0 +1,8 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-10 00:29:09,2026-09-10 02:29:09,nossob,night,15,hits,20,0.9079,1,0.15,canine family,mammalia,0.9806,2,9.1,18.1,0.911,0.312,4.0.3a,hits/nossob/20260910/002909_p15_blob20.jpg
+2026-09-10 00:32:10,2026-09-10 02:32:10,nossob,night,15,hits,3,0.0115,0,0.15,blank,,0.8657,1,2.1,5.4,0.89,0.352,4.0.3a,hits/nossob/20260910/003210_p15_blob3.jpg
+2026-09-10 00:58:07,2026-09-10 02:58:07,nossob,night,15,hits,3,0.0186,0,0.15,blank,,0.9306,1,2.1,5.4,0.891,0.353,4.0.3a,hits/nossob/20260910/005807_p15_blob3.jpg
+2026-09-10 01:12:19,2026-09-10 03:12:19,nossob,night,8,hits,6,0.0132,0,0.15,blank,,0.8684,1,5.7,3.2,0.557,0.513,4.0.3a,hits/nossob/20260910/011219_p8_blob6.jpg
+2026-09-10 01:25:01,2026-09-10 03:25:01,nossob,night,15,hits,110,0.9473,1,0.15,mammal,mammalia,0.9329,1,25.9,21.5,0.865,0.2,4.0.3a,hits/nossob/20260910/012501_p15_blob110.jpg
+2026-09-10 01:27:59,2026-09-10 03:27:59,nossob,night,11,hits,7,0.8887,1,0.15,carnivorous mammal,mammalia,0.6561,2,9.6,7.9,0.826,0.613,4.0.3a,hits/nossob/20260910/012759_p11_blob7.jpg
+2026-09-10 01:43:10,2026-09-10 03:43:10,nossob,night,14,hits,7,0.0,0,0.15,blank,,0.9911,0,,,,,4.0.3a,hits/nossob/20260910/014310_p14_blob7.jpg
