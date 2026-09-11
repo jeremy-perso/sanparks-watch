@@ -139,6 +139,24 @@ HDRS  = {
     "Sec-Fetch-Site": "same-site",
     "Connection": "keep-alive",
 }
+# CHANGED 11 SEP 2026: THE curl_cffi PATH NO LONGER SENDS HDRS.
+# From 10 Sep 15:33 UTC the image host began refusing a share of requests
+# that grew overnight: 4 runs of 41 lost a camera to FORBID_MAX on 10 Sep
+# 12-24 UTC, 8 of 20 on 11 Sep 00-05:30, none on 6 Sep to 10 Sep noon
+# (measured 11 Sep 2026 on the CSVs against the watch commit times). The run
+# of 05:24 UTC was refused on 32 of 48 requests, alternating with successes
+# on all three cameras from the same runner, so it is not an IP block.
+# Captured 11 Sep 2026 on a local echo server: with HDRS, curl_cffi 0.16.3
+# (impersonate "chrome" = chrome150) sent sec-ch-ua Chrome 150 on macOS, a
+# User-Agent of Chrome 128 on Windows, and navigation headers (Sec-Fetch-User,
+# Upgrade-Insecure-Requests) beside Sec-Fetch-Dest image: three claims that
+# contradict each other, on a Chrome 150 TLS handshake. Bot scoring reads
+# exactly that. The mismatch predates the refusals (0.16.2 also maps to
+# chrome150), so it did not START them; the host presumably tightened. Now
+# curl_cffi sends its own coherent Chrome set plus the Referer only.
+# NOT YET MEASURED against the host. To revert, set CC_HDRS = HDRS.
+# The plain-requests fallback still sends HDRS, unchanged.
+CC_HDRS = {"Referer": HDRS["Referer"]}
 NB8   = np.ones((3, 3), dtype=int)
 PLOCK = threading.Lock()
 
@@ -427,6 +445,7 @@ class Watcher:
         self.nhits = self.nframes = 0
         self.forbidden = False
         self.f403 = 0
+        self.nreq = self.n403 = 0        # every request, and the refused ones
 
     # --- state -------------------------------------------------------------
     def load(self):
@@ -523,13 +542,29 @@ class Watcher:
     def grab(self):
         params = {"t": int(time.time() * 1000)}
         if _cc is not None:
-            r = _cc.get(self.cam["url"], headers=HDRS, timeout=25,
+            r = _cc.get(self.cam["url"], headers=CC_HDRS, timeout=25,
                         params=params, impersonate=IMPERSONATE)
         else:
             r = requests.get(self.cam["url"], headers=HDRS, timeout=25,
                              params=params)
+        self.nreq += 1
         if r.status_code == 403:
-            raise Forbidden403("403 Forbidden")
+            # ADDED 11 SEP 2026. Say WHO refused. cf-mitigated "challenge"
+            # means Cloudflare bot management; a 403 with no cf-mitigated and
+            # a non-Cloudflare server header means the origin. run() logs
+            # this detail on the first 403 of each streak only.
+            self.n403 += 1
+            h = r.headers
+            raw = r.content or b""
+            low = raw[:600].decode("utf-8", "replace").lower()
+            title = ""
+            if "<title>" in low:
+                i = low.index("<title>") + 7
+                title = low[i:low.find("</title>", i)].strip()[:60]
+            raise Forbidden403(
+                f"server={h.get('server')} cf-mitigated={h.get('cf-mitigated')} "
+                f"cf-ray={h.get('cf-ray')} type={h.get('content-type')} "
+                f"len={len(raw)} title={title!r}")
         r.raise_for_status()
         return r.content, r.headers.get("ETag"), r.headers.get("Last-Modified")
 
@@ -574,10 +609,11 @@ class Watcher:
                     time.sleep(POLL); continue
                 seen.add(key); self.etag = key
                 self.handle(raw, lm)
-            except Forbidden403:
+            except Forbidden403 as e:
                 self.f403 += 1
                 log(f"[{self.name}] 403 Forbidden "
-                    f"({self.f403}/{FORBID_MAX} consecutive)")
+                    f"({self.f403}/{FORBID_MAX} consecutive)"
+                    + (f" [{e}]" if self.f403 == 1 else ""))
                 if self.f403 >= FORBID_MAX:
                     # BREAK, DO NOT RETURN. Returning here used to skip save(),
                     # flush_keep() and write_csv(), so a camera that got blocked
@@ -738,7 +774,8 @@ def main():
         th.join()
 
     log("--- " + " | ".join(
-        f"{w.name}: {len(w.presets)} presets, {w.nframes} frames, {w.nhits} hits"
+        f"{w.name}: {len(w.presets)} presets, {w.nframes} frames, {w.nhits} hits, "
+        f"403 on {w.n403}/{w.nreq} requests"
         for w in ws))
 
     blocked = [w.name for w in ws if w.forbidden]
