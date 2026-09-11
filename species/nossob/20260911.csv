@@ -1,0 +1,16 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-11 00:01:18,2026-09-11 02:01:18,nossob,night,14,frames,118,0.012,0,0.15,blank,,0.9898,1,15.4,2.1,0.424,0.571,4.0.3a,frames/nossob/20260911/000118_p14_blob0118_f0.56.jpg
+2026-09-11 00:06:17,2026-09-11 02:06:17,nossob,night,15,hits,19,0.2648,1,0.15,no cv result,no cv result,0.2041,5,5.7,15.6,0.556,0.299,4.0.3a,hits/nossob/20260911/000617_p15_blob19.jpg
+2026-09-11 00:30:09,2026-09-11 02:30:09,nossob,night,141,frames,100,0.0,0,0.15,blank,,0.9961,0,,,,,4.0.3a,frames/nossob/20260911/003009_p141_blob0100_f0.38.jpg
+2026-09-11 00:48:43,2026-09-11 02:48:43,nossob,night,14,hits,3,0.0231,0,0.15,blank,,0.9439,3,2.2,3.3,0.239,0.573,4.0.3a,hits/nossob/20260911/004843_p14_blob3.jpg
+2026-09-11 00:57:17,2026-09-11 02:57:17,nossob,night,16,frames,31,0.0,0,0.15,blank,,0.9939,0,,,,,4.0.3a,frames/nossob/20260911/005717_p16_blob0031_f0.40.jpg
+2026-09-11 01:05:53,2026-09-11 03:05:53,nossob,night,16,frames,52,0.0267,0,0.15,no cv result,no cv result,0.9891,4,3.7,7.4,0.109,0.408,4.0.3a,frames/nossob/20260911/010553_p16_blob0052_f0.34.jpg
+2026-09-11 01:07:14,2026-09-11 03:07:14,nossob,night,12,hits,26,0.7066,1,0.15,animal,,0.7066,2,17.8,13.3,0.465,0.157,4.0.3a,hits/nossob/20260911/010714_p12_blob26.jpg
+2026-09-11 01:10:15,2026-09-11 03:10:15,nossob,night,12,hits,16,0.8455,1,0.15,canine family,mammalia,0.9791,3,5.3,8.7,0.76,0.211,4.0.3a,hits/nossob/20260911/011015_p12_blob16.jpg
+2026-09-11 01:22:15,2026-09-11 03:22:15,nossob,night,15,hits,14,0.8828,1,0.15,bird,aves,0.7855,1,13.3,6.6,0.767,0.426,4.0.3a,hits/nossob/20260911/012215_p15_blob14.jpg
+2026-09-11 01:27:01,2026-09-11 03:27:01,nossob,night,19,frames,22,0.2114,1,0.15,no cv result,no cv result,0.9675,7,5.1,2.3,0.669,0.421,4.0.3a,frames/nossob/20260911/012701_p19_blob0022_f0.41.jpg
+2026-09-11 01:46:53,2026-09-11 03:46:53,nossob,night,16,frames,300,0.0,0,0.15,blank,,0.9872,0,,,,,4.0.3a,frames/nossob/20260911/014653_p16_blob0300_f0.54.jpg
+2026-09-11 01:56:13,2026-09-11 03:56:13,nossob,night,8,frames,345,0.0235,0,0.15,blank,,0.9817,2,17.9,4.8,0.678,0.424,4.0.3a,frames/nossob/20260911/015613_p8_blob0345_f0.32.jpg
+2026-09-11 01:59:20,2026-09-11 03:59:20,nossob,night,8,hits,6,0.0,0,0.15,blank,,0.9038,0,,,,,4.0.3a,hits/nossob/20260911/015920_p8_blob6.jpg
+2026-09-11 02:16:12,2026-09-11 04:16:12,nossob,night,16,hits,170,0.0788,0,0.15,blank,,0.9967,5,2.4,3.2,0.233,0.147,4.0.3a,hits/nossob/20260911/021612_p16_blob170.jpg
+2026-09-11 02:37:56,2026-09-11 04:37:56,nossob,night,12,frames,9,0.0244,0,0.15,blank,,0.9491,3,23.9,6.3,0.157,0.384,4.0.3a,frames/nossob/20260911/023756_p12_blob0009_f0.36.jpg
