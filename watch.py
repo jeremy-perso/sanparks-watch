@@ -45,6 +45,17 @@ FORCE   = os.getenv("FORCE_ALL_HOURS", "") == "1" # ignore the active-hours gate
 # run, so a transient refusal cost the entire session. Only give up after this
 # many CONSECUTIVE 403s; any success resets the count.
 FORBID_MAX = int(os.getenv("FORBID_MAX", 5))
+# CHANGED 11 SEP 2026: A STREAK OF FORBID_MAX NO LONGER ENDS THE CAMERA'S RUN.
+# The 403s are Cloudflare managed challenges (cf-mitigated=challenge, "Just a
+# moment...", logged 11 Sep 16:00 UTC), issued to a share of requests and
+# interleaved with successes. With the 4/8/12/16 s backoff, five in a row
+# takes about 40 s (Nossob 16:02:39 to 16:03:19 UTC, 11 Sep), and breaking
+# there threw away the rest of a 12-minute window: 25 of 96 runs from 10 Sep
+# 12:00 to 11 Sep 16:12 UTC lost a camera this way, measured on the CSVs
+# against the watch commit times. Now the camera cools down for COOLDOWN
+# seconds and resumes. The job fails only if an awake camera got NO
+# successful fetch in the whole run, which is what a dead route looks like.
+COOLDOWN   = int(os.getenv("COOLDOWN", 60))
 ARCHIVE_MAX = 900                                 # long edge of archived frames
 
 # --- analysis geometry (shared by every camera)
@@ -446,6 +457,8 @@ class Watcher:
         self.forbidden = False
         self.f403 = 0
         self.nreq = self.n403 = 0        # every request, and the refused ones
+        self.nok = self.ncool = 0        # successful fetches, cooldowns taken
+        self.awake = False
 
     # --- state -------------------------------------------------------------
     def load(self):
@@ -594,6 +607,7 @@ class Watcher:
             log(f"[{self.name}] asleep, local hour {local:02d} outside "
                 f"{self.cam['active']}")
             return
+        self.awake = True
         self.load()
         log(f"[{self.name}] awake, local {local:02d}h, "
             f"{'night' if is_night(local, self.cam.get('night',(18,6))) else 'day'} "
@@ -604,6 +618,7 @@ class Watcher:
             try:
                 raw, etag, lm = self.grab()
                 self.f403 = 0
+                self.nok += 1
                 key = etag or hashlib.md5(raw).hexdigest()
                 if key in seen:
                     time.sleep(POLL); continue
@@ -615,16 +630,16 @@ class Watcher:
                     f"({self.f403}/{FORBID_MAX} consecutive)"
                     + (f" [{e}]" if self.f403 == 1 else ""))
                 if self.f403 >= FORBID_MAX:
-                    # BREAK, DO NOT RETURN. Returning here used to skip save(),
-                    # flush_keep() and write_csv(), so a camera that got blocked
-                    # at minute 8 of a 9-minute run threw away every row and
-                    # every archived frame it had already collected, and lost
-                    # the preset backgrounds it had just learned. Found 2 Sep
-                    # 2026 while adding a third camera: with three cameras on
-                    # one host this path is hit more often, and the frames
-                    # before a block are exactly the ones worth keeping.
-                    self.forbidden = True
-                    break
+                    # COOL DOWN, DO NOT BREAK (11 Sep 2026). Breaking here
+                    # ended the camera's window after ~40 s of challenges.
+                    # The save/flush/write below still runs at the deadline.
+                    self.ncool += 1
+                    wait = max(0, min(COOLDOWN, deadline - time.time()))
+                    log(f"[{self.name}] {FORBID_MAX} consecutive 403s, "
+                        f"cooling down {wait:.0f} s")
+                    time.sleep(wait)
+                    self.f403 = 0
+                    continue
                 time.sleep(min(4 * self.f403, 20))
                 continue
             except Exception as e:
@@ -775,16 +790,20 @@ def main():
 
     log("--- " + " | ".join(
         f"{w.name}: {len(w.presets)} presets, {w.nframes} frames, {w.nhits} hits, "
-        f"403 on {w.n403}/{w.nreq} requests"
+        f"403 on {w.n403}/{w.nreq} requests, {w.ncool} cooldowns"
         for w in ws))
 
-    blocked = [w.name for w in ws if w.forbidden]
-    if blocked:
-        log(f"\n*** {FORBID_MAX} consecutive 403s from the image host for: "
-            + ", ".join(blocked) + " ***\n"
-            "Not necessarily an IP block: with curl_cffi the same runner reached\n"
-            "other cameras on 30 Aug 2026. Check the camera's own URL in a browser\n"
-            "before concluding the route is dead.\n")
+    cooled = [f"{w.name} x{w.ncool}" for w in ws if w.ncool]
+    if cooled:
+        # A warning annotation, not a failure: the camera kept polling.
+        print(f"::warning::Cloudflare challenge cooldowns: {', '.join(cooled)}",
+              flush=True)
+    dead = [w.name for w in ws if w.awake and w.nok == 0]
+    if dead:
+        log(f"\n*** no successful fetch in the whole run for: "
+            + ", ".join(dead) + " ***\n"
+            "Check the camera's own URL in a browser before concluding the\n"
+            "route is dead.\n")
         sys.exit(1)
 
 
