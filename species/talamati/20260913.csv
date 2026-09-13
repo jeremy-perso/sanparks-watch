@@ -1,0 +1,13 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-13 00:00:53,2026-09-13 02:00:53,talamati,night,1495,frames,289,0.0,0,0.15,blank,,0.996,0,,,,,4.0.3a,frames/talamati/20260913/000053_p1495_blob0289_f0.19.jpg
+2026-09-13 00:07:16,2026-09-13 02:07:16,talamati,night,1483,hits,90,0.04,0,0.15,blank,,0.9903,2,1.7,2.1,0.241,0.472,4.0.3a,hits/talamati/20260913/000716_p1483_blob90.jpg
+2026-09-13 00:08:05,2026-09-13 02:08:05,talamati,night,1485,hits,97,0.1468,0,0.15,blank,,0.8821,2,5.3,4.8,0.195,0.527,4.0.3a,hits/talamati/20260913/000805_p1485_blob97.jpg
+2026-09-13 00:30:01,2026-09-13 02:30:01,talamati,night,1495,frames,598,0.0102,0,0.15,blank,,0.9995,1,1.5,1.8,0.572,0.471,4.0.3a,frames/talamati/20260913/003001_p1495_blob0598_f0.32.jpg
+2026-09-13 00:55:09,2026-09-13 02:55:09,talamati,night,1488,hits,91,0.046,0,0.15,blank,,0.9976,1,2.7,1.7,0.541,0.639,4.0.3a,hits/talamati/20260913/005509_p1488_blob91.jpg
+2026-09-13 01:00:48,2026-09-13 03:00:48,talamati,night,1484,frames,830,0.0,0,0.15,blank,,0.9835,0,,,,,4.0.3a,frames/talamati/20260913/010048_p1484_blob0830_f0.32.jpg
+2026-09-13 01:04:49,2026-09-13 03:04:49,talamati,night,1488,frames,37,0.0247,0,0.15,blank,,0.9802,1,2.5,2.0,0.541,0.641,4.0.3a,frames/talamati/20260913/010449_p1488_blob0037_f0.62.jpg
+2026-09-13 01:20:29,2026-09-13 03:20:29,talamati,night,1483,frames,10,0.0744,0,0.15,blank,,0.9703,6,4.8,22.0,0.025,0.342,4.0.3a,frames/talamati/20260913/012029_p1483_blob0010_f0.62.jpg
+2026-09-13 01:39:09,2026-09-13 03:39:09,talamati,night,1492,frames,564,0.0,0,0.15,blank,,0.9949,0,,,,,4.0.3a,frames/talamati/20260913/013909_p1492_blob0564_f0.29.jpg
+2026-09-13 01:59:13,2026-09-13 03:59:13,talamati,night,1484,frames,673,0.0,0,0.15,blank,,0.9902,0,,,,,4.0.3a,frames/talamati/20260913/015913_p1484_blob0673_f0.31.jpg
+2026-09-13 02:16:03,2026-09-13 04:16:03,talamati,night,1496,frames,39,0.0,0,0.15,blank,,0.9804,0,,,,,4.0.3a,frames/talamati/20260913/021603_p1496_blob0039_f0.65.jpg
+2026-09-13 02:29:04,2026-09-13 04:29:04,talamati,night,1540,frames,448,0.0509,0,0.15,blank,,0.9634,3,40.6,12.2,0.488,0.538,4.0.3a,frames/talamati/20260913/022904_p1540_blob0448_f0.25.jpg
