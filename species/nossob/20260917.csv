@@ -1,0 +1,13 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-17 00:00:15,2026-09-17 02:00:15,nossob,night,19,frames,158,0.0308,0,0.15,blank,,0.9911,5,54.5,8.5,0.715,0.449,4.0.3a,frames/nossob/20260917/000015_p19_blob0158_f0.33.jpg
+2026-09-17 00:16:28,2026-09-17 02:16:28,nossob,night,11,frames,101,0.0,0,0.15,blank,,0.9932,0,,,,,4.0.3a,frames/nossob/20260917/001628_p11_blob0101_f0.56.jpg
+2026-09-17 00:33:39,2026-09-17 02:33:39,nossob,night,11,hits,29,0.111,0,0.15,blank,,0.9992,3,9.6,2.7,0.864,0.688,4.0.3a,hits/nossob/20260917/003339_p11_blob29.jpg
+2026-09-17 00:34:14,2026-09-17 02:34:14,nossob,night,11,hits,17,0.3128,1,0.15,blank,,0.9981,7,9.9,2.9,0.865,0.69,4.0.3a,hits/nossob/20260917/003414_p11_blob17.jpg
+2026-09-17 00:35:02,2026-09-17 02:35:02,nossob,night,18,hits,3,0.0625,0,0.15,blank,,0.997,2,1.4,1.1,0.464,0.473,4.0.3a,hits/nossob/20260917/003502_p18_blob3.jpg
+2026-09-17 01:01:13,2026-09-17 03:01:13,nossob,night,64,frames,21,0.0,0,0.15,blank,,0.999,2,2.8,5.4,0.264,0.426,4.0.3a,frames/nossob/20260917/010113_p64_blob0021_f0.70.jpg
+2026-09-17 01:14:28,2026-09-17 03:14:28,nossob,night,77,frames,8,0.0214,0,0.15,blank,,0.9942,2,1.8,4.5,0.009,0.468,4.0.3a,frames/nossob/20260917/011428_p77_blob0008_f0.32.jpg
+2026-09-17 01:20:28,2026-09-17 03:20:28,nossob,night,15,hits,4,0.046,0,0.15,blank,,0.5969,2,2.1,5.6,0.893,0.35,4.0.3a,hits/nossob/20260917/012028_p15_blob4.jpg
+2026-09-17 01:30:54,2026-09-17 03:30:54,nossob,night,18,hits,9,0.1205,0,0.15,blank,,0.9981,6,1.5,1.1,0.465,0.472,4.0.3a,hits/nossob/20260917/013054_p18_blob9.jpg
+2026-09-17 01:49:20,2026-09-17 03:49:20,nossob,night,77,frames,9,0.0283,0,0.15,blank,,0.9863,2,1.8,4.5,0.009,0.466,4.0.3a,frames/nossob/20260917/014920_p77_blob0009_f0.45.jpg
+2026-09-17 02:06:14,2026-09-17 04:06:14,nossob,night,8,frames,4,0.028,0,0.15,blank,,0.9883,2,6.7,11.6,0.965,0.479,4.0.3a,frames/nossob/20260917/020614_p8_blob0004_f0.67.jpg
+2026-09-17 02:34:17,2026-09-17 04:34:17,nossob,night,14,frames,175,0.0195,0,0.15,blank,,0.9682,2,14.4,1.9,0.537,0.557,4.0.3a,frames/nossob/20260917/023417_p14_blob0175_f0.46.jpg
