@@ -187,6 +187,26 @@ try:
 except ImportError:
     _cc = None
 
+# ONE SESSION PER CAMERA PER RUN, ADDED 17 SEP 2026. SESSION=0 reverts.
+#
+# WHAT WAS WRONG. `_cc.get(...)` at module level builds a throwaway client for
+# every request: measured 16 Sep 2026 on a local server, 3 requests opened 3
+# TCP connections and returned no cookie on any of them, where a Session
+# opened 1 connection and returned the cookie on requests 2 and 3. Cloudflare
+# sets `__cf_bm`, its bot-management cookie, on a successful response; a
+# browser hands it back and is not re-scored. We discarded it and presented a
+# fresh TLS handshake about 60 times a camera a run, three cameras from one
+# runner IP.
+#
+# THE BASELINE THIS IS READ AGAINST. Five runs of 16 Sep 22:29 to 17 Sep 00:44
+# UTC: 506 of 985 requests refused, 51.4%, per camera-run 28% to 73%, 26
+# cooldowns. All 403s carry cf-mitigated=challenge.
+#
+# NOT MEASURED against the host. Whether the SANParks zone issues `__cf_bm`
+# at all, and how much of the 51% this removes, is unknown until it runs.
+# The request COUNT is unchanged by this; only the client identity is.
+SESSION = os.getenv("SESSION", "1") != "0"
+
 
 # SCHEMA HISTORY, because the logs change shape mid-file and any analysis has
 # to split on it:
@@ -459,6 +479,8 @@ class Watcher:
         self.nreq = self.n403 = 0        # every request, and the refused ones
         self.nok = self.ncool = 0        # successful fetches, cooldowns taken
         self.awake = False
+        self.sess = None                 # one curl_cffi Session for the run
+        self.nsess = 0                   # sessions opened, so a churn shows
 
     # --- state -------------------------------------------------------------
     def load(self):
@@ -552,9 +574,31 @@ class Watcher:
         return self.logs / f"{day}_{self.name}_v20.csv"
 
     # --- io ----------------------------------------------------------------
+    def session(self):
+        """The camera's curl_cffi Session, opened on first use.
+
+        Kept for the whole run so cookies and the TLS connection persist.
+        `__cf_bm` lives about 30 minutes and a run is 12, so one is enough.
+        """
+        if self.sess is None:
+            self.sess = _cc.Session(impersonate=IMPERSONATE, headers=CC_HDRS)
+            self.nsess += 1
+        return self.sess
+
+    def drop_session(self):
+        """Throw the Session away, so the next grab() starts a clean one."""
+        if self.sess is not None:
+            try:
+                self.sess.close()
+            except Exception:
+                pass
+            self.sess = None
+
     def grab(self):
         params = {"t": int(time.time() * 1000)}
-        if _cc is not None:
+        if _cc is not None and SESSION:
+            r = self.session().get(self.cam["url"], timeout=25, params=params)
+        elif _cc is not None:
             r = _cc.get(self.cam["url"], headers=CC_HDRS, timeout=25,
                         params=params, impersonate=IMPERSONATE)
         else:
@@ -643,9 +687,14 @@ class Watcher:
                 time.sleep(min(4 * self.f403, 20))
                 continue
             except Exception as e:
+                # A transport error can leave the connection unusable, and the
+                # cookie is worth nothing if the socket is dead. A 403 is NOT
+                # caught here and deliberately keeps its session.
                 log(f"[{self.name}] error: {e}")
+                self.drop_session()
             time.sleep(POLL)
 
+        self.drop_session()
         self.save()
         self.flush_keep()
         self.write_csv()
@@ -775,9 +824,49 @@ class Watcher:
                 self.archive(raw, stamp, pid, m)
 
 
+def write_http_log(ws, started, started_ts, ended_ts):
+    """One row per awake camera per run, in logs/http/YYYYMMDD.csv.
+
+    ADDED 17 SEP 2026. The 403 rate existed only in the Actions log, which
+    expires, so every claim about it was a single anecdote. This makes it a
+    series. It is NOT a detector log: it lives in its own directory so that
+    anything walking logs/<cam>/ never sees it. `git add -A logs` in
+    watch.yml already covers it, and `merge=union` in .gitattributes applies
+    to logs/**/*.csv, so two runs appending the same day merge.
+    """
+    d = ROOT / "logs" / "http"
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / (datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
+             + "_http.csv")
+    cols = ["utc", "cam", "nreq", "n403", "nok", "ncool", "nsess",
+            "frames", "hits", "window_s", "poll", "session", "impersonate"]
+    new = not f.exists()
+    try:
+        with f.open("a", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=cols)
+            if new:
+                w.writeheader()
+            for c in ws:
+                if not c.awake:
+                    continue
+                w.writerow({
+                    "utc": started.strftime("%Y-%m-%d %H:%M:%S"),
+                    "cam": c.name, "nreq": c.nreq, "n403": c.n403,
+                    "nok": c.nok, "ncool": c.ncool, "nsess": c.nsess,
+                    "frames": c.nframes, "hits": c.nhits,
+                    "window_s": int(ended_ts - started_ts),
+                    "poll": POLL, "session": int(bool(SESSION)),
+                    "impersonate": IMPERSONATE if _cc else "requests"})
+    except Exception as e:
+        # Instrumentation must never cost a run.
+        log(f"http log failed: {e}")
+
+
 def main():
     log(f"http stack: {'curl_cffi impersonate=' + IMPERSONATE if _cc else 'requests (no TLS impersonation)'}")
     deadline = time.time() + RUNTIME
+    started = datetime.datetime.now(datetime.timezone.utc)
+    started_ts = time.time()
     ws = [Watcher(c) for c in CAMERAS]
     ts = [threading.Thread(target=w.run, args=(deadline,), daemon=False) for w in ws]
     # Stagger, so the cameras do not arrive at the host as a simultaneous burst.
@@ -790,8 +879,12 @@ def main():
 
     log("--- " + " | ".join(
         f"{w.name}: {len(w.presets)} presets, {w.nframes} frames, {w.nhits} hits, "
-        f"403 on {w.n403}/{w.nreq} requests, {w.ncool} cooldowns"
+        f"403 on {w.n403}/{w.nreq} requests "
+        f"({100 * w.n403 / w.nreq if w.nreq else 0:.0f}%), "
+        f"{w.ncool} cooldowns, {w.nsess} sessions"
         for w in ws))
+
+    write_http_log(ws, started, started_ts, time.time())
 
     cooled = [f"{w.name} x{w.ncool}" for w in ws if w.ncool]
     if cooled:
