@@ -169,6 +169,30 @@ jobs:
           # camera between 09:52 and 15:51 UTC.
           TOP_N:           ${{ inputs.top_n || '1' }}
           FORCE_ALL_HOURS: ${{ inputs.force_all_hours || '' }}
+          # DATE-SCOPED collect=all WINDOWS, UTC. Added 18 Sep 2026.
+          #
+          # This is deliberately a literal and NOT a dispatch input, because a
+          # dispatch cannot reliably get one. `concurrency` above has
+          # cancel-in-progress: false, so one run executes and ONE waits, and
+          # a newly queued run cancels whichever was already waiting. At cron
+          # */5 a manual dispatch is evicted by the next scheduled event
+          # before it starts. Measured 17 Sep 2026: one of three dispatches
+          # completed. Putting the window here lets the SCHEDULED runs collect,
+          # so there is nothing to race.
+          #
+          # Each window names its own date and expires on its own, so leaving
+          # this line in place costs nothing. Set it to "" to be explicit.
+          # Format: "YYYYMMDD HH:MM-HH:MM", comma-separated, end exclusive.
+          #
+          # SAST is UTC+2 and `night` flips at local hour 18, i.e. 16:00 UTC.
+          #   14:45-15:45 UTC = 16:45-17:45 SAST, daylight mode throughout.
+          #     Nossob's strongest hour: 42% of its frames/ captures in the
+          #     17:00 SAST hour carry an MD box at 0.6+, on 57 captures,
+          #     8-16 Sep 2026, against 21-36% either side.
+          #   17:30-18:15 UTC = 19:30-20:15 SAST, night mode throughout.
+          #     Night is the under-sampled mode: Satara fired 9 times in ten
+          #     days and Talamati night has no frames/ capture above 0.6.
+          COLLECT_ALL: "20260918 14:45-15:45,20260918 17:30-18:15"
         run: python watch.py
 
       - name: Save preset backgrounds
