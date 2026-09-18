@@ -1,0 +1,12 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-18 00:29:13,2026-09-18 02:29:13,nossob,night,17,frames,101,0.0264,0,0.15,blank,,0.9964,4,4.2,7.3,0.108,0.413,4.0.3a,frames/nossob/20260918/002913_p17_blob0101_f0.55.jpg
+2026-09-18 00:44:12,2026-09-18 02:44:12,nossob,night,18,frames,3,0.0156,0,0.15,blank,,0.9879,1,4.8,2.2,0.451,0.331,4.0.3a,frames/nossob/20260918/004412_p18_blob0003_f1.00.jpg
+2026-09-18 01:01:57,2026-09-18 03:01:57,nossob,night,8,hits,51,0.957,1,0.15,canine family,mammalia,0.9668,2,9.5,12.2,0.078,0.409,4.0.3a,hits/nossob/20260918/010157_p8_blob51.jpg
+2026-09-18 01:35:00,2026-09-18 03:35:00,nossob,night,15,frames,8,0.0,0,0.15,blank,,0.9788,1,29.4,15.3,0.791,0.319,4.0.3a,frames/nossob/20260918/013500_p15_blob0008_f0.80.jpg
+2026-09-18 01:56:14,2026-09-18 03:56:14,nossob,night,11,hits,7,0.227,1,0.15,blank,,0.9936,4,9.9,2.7,0.865,0.689,4.0.3a,hits/nossob/20260918/015614_p11_blob7.jpg
+2026-09-18 01:57:14,2026-09-18 03:57:14,nossob,night,18,hits,20,0.0664,0,0.15,blank,,0.945,5,3.1,2.8,0.914,0.397,4.0.3a,hits/nossob/20260918/015714_p18_blob20.jpg
+2026-09-18 01:59:16,2026-09-18 03:59:16,nossob,night,14,frames,37,0.0267,0,0.15,blank,,0.9997,3,1.9,1.7,0.304,0.364,4.0.3a,frames/nossob/20260918/015916_p14_blob0037_f0.46.jpg
+2026-09-18 01:59:52,2026-09-18 03:59:52,nossob,night,18,hits,6,0.0201,0,0.15,blank,,0.9992,1,1.6,1.2,0.467,0.471,4.0.3a,hits/nossob/20260918/015952_p18_blob6.jpg
+2026-09-18 02:05:11,2026-09-18 04:05:11,nossob,night,14,hits,10,0.0,0,0.15,blank,,0.9926,0,,,,,4.0.3a,hits/nossob/20260918/020511_p14_blob10.jpg
+2026-09-18 02:14:59,2026-09-18 04:14:59,nossob,night,8,frames,271,0.0168,0,0.15,blank,,0.9254,2,6.8,3.6,0.741,0.409,4.0.3a,frames/nossob/20260918/021459_p8_blob0271_f0.30.jpg
+2026-09-18 02:23:12,2026-09-18 04:23:12,nossob,night,64,frames,26,0.0185,0,0.15,blank,,0.9958,3,3.1,5.8,0.231,0.421,4.0.3a,frames/nossob/20260918/022312_p64_blob0026_f0.43.jpg
