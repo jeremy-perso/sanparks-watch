@@ -40,6 +40,23 @@ TOP_N   = int(os.getenv("TOP_N", 1))              # frames kept per run in 'top'
                                                   # that is still ~290 frames
                                                   # per camera per day.
 FORCE   = os.getenv("FORCE_ALL_HOURS", "") == "1" # ignore the active-hours gate
+# COLLECT_ALL: DATE-SCOPED collect=all windows, in UTC, added 18 Sep 2026.
+# Format "YYYYMMDD HH:MM-HH:MM", comma-separated for several. Inside a window
+# every frame is archived regardless of COLLECT; outside it nothing changes.
+#
+# WHY IT IS NOT A DISPATCH INPUT. An unbiased sample needs collect=all, and a
+# manual dispatch cannot reliably get one. `concurrency` in watch.yml has
+# cancel-in-progress: false, so one run executes and ONE waits, and a newly
+# queued run cancels whichever run was already waiting. With cron at */5 a
+# manual dispatch is evicted by the next scheduled event before it ever
+# starts: measured 17 Sep 2026, one dispatch of three completed. Putting the
+# window here lets the SCHEDULED runs do the collecting, so there is nothing
+# to race.
+#
+# WHY IT CARRIES A DATE. Leaving collect=all on costs ~190 MB of JPEG a day
+# and erodes detector coverage through checkout time. A window that names its
+# own date expires on its own, so forgetting to revert this line is free.
+COLLECT_ALL = os.getenv("COLLECT_ALL", "").strip()
 # Measured 30 Aug 2026: with curl_cffi, Nossob fetched fine while Talamati's
 # very first request was refused. One 403 used to kill a camera for the whole
 # run, so a transient refusal cost the entire session. Only give up after this
@@ -302,6 +319,46 @@ def log(msg):
         print(msg, flush=True)
 
 
+def _parse_collect_all(spec):
+    """Parse "YYYYMMDD HH:MM-HH:MM[,...]" into (day, start_min, end_min) tuples.
+
+    A window that will not parse is DROPPED WITH A WARNING rather than crashing
+    the run or, worse, silently collecting nothing. The end is exclusive."""
+    out = []
+    for part in spec.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            day, span = part.split()
+            a, b = span.split("-")
+            ah, am = (int(x) for x in a.split(":"))
+            bh, bm = (int(x) for x in b.split(":"))
+            if len(day) != 8 or not day.isdigit():
+                raise ValueError(day)
+            out.append((day, ah * 60 + am, bh * 60 + bm))
+        except ValueError:
+            log(f"::warning::COLLECT_ALL: cannot parse {part!r}, ignored")
+    return out
+
+
+COLLECT_ALL_WINDOWS = _parse_collect_all(COLLECT_ALL)
+
+
+def collect_mode(now):
+    """'all' inside a COLLECT_ALL window, otherwise whatever COLLECT says.
+
+    Decided per frame, not per run, because a 12-minute run straddles the edge
+    of a window and only the frames actually inside it are the unbiased set."""
+    if COLLECT_ALL_WINDOWS:
+        day = now.strftime("%Y%m%d")
+        mins = now.hour * 60 + now.minute
+        for d, a, b in COLLECT_ALL_WINDOWS:
+            if d == day and a <= mins < b:
+                return "all"
+    return COLLECT
+
+
 def build_mask():
     """True where pixels count. The burnt-in clock changes every minute and
     would otherwise be a small, solid, perfectly animal-shaped blob."""
@@ -493,6 +550,7 @@ class Watcher:
         self.next_id = 0        # monotonic, so eviction never reuses an id
         self.rows, self.keep = [], []
         self.nhits = self.nframes = 0
+        self.ncollect = 0        # frames archived by a COLLECT_ALL window
         self.forbidden = False
         self.f403 = 0
         self.nreq = self.n403 = 0        # every request, and the refused ones
@@ -830,9 +888,11 @@ class Watcher:
                               vetoed=vetoed, veto30=veto30,
                               hit=int(hit), bytes=len(raw)))
 
-        if COLLECT == "all":
+        cmode = collect_mode(now)
+        if cmode == "all":
             self.archive(raw, stamp, best["id"], m)
-        elif COLLECT == "top":
+            self.ncollect += 1
+        elif cmode == "top":
             self.keep.append((m["blob"], stamp, best["id"], m, raw))
 
         if hit:
@@ -895,6 +955,15 @@ def write_http_log(ws, started, started_ts, ended_ts):
 
 def main():
     log(f"http stack: {'curl_cffi impersonate=' + IMPERSONATE if _cc else 'requests (no TLS impersonation)'}")
+    if COLLECT_ALL_WINDOWS:
+        today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
+        live = [w for w in COLLECT_ALL_WINDOWS if w[0] == today]
+        log("COLLECT_ALL windows (UTC): " + ", ".join(
+            f"{d} {a // 60:02d}:{a % 60:02d}-{b // 60:02d}:{b % 60:02d}"
+            f"{'' if d == today else ' (not today)'}"
+            for d, a, b in COLLECT_ALL_WINDOWS)
+            + (f" -- {len(live)} active today" if live
+               else " -- NONE FOR TODAY, collecting as normal"))
     deadline = time.time() + RUNTIME
     started = datetime.datetime.now(datetime.timezone.utc)
     started_ts = time.time()
@@ -910,6 +979,7 @@ def main():
 
     log("--- " + " | ".join(
         f"{w.name}: {len(w.presets)} presets, {w.nframes} frames, {w.nhits} hits, "
+        f"{w.ncollect} collected, "
         f"403 on {w.n403}/{w.nreq} requests "
         f"({100 * w.n403 / w.nreq if w.nreq else 0:.0f}%), "
         f"{w.ncool} cooldowns, {w.nsess} sessions"
