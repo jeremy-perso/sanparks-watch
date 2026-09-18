@@ -202,10 +202,29 @@ except ImportError:
 # UTC: 506 of 985 requests refused, 51.4%, per camera-run 28% to 73%, 26
 # cooldowns. All 403s carry cf-mitigated=challenge.
 #
-# NOT MEASURED against the host. Whether the SANParks zone issues `__cf_bm`
-# at all, and how much of the 51% this removes, is unknown until it runs.
-# The request COUNT is unchanged by this; only the client identity is.
+# READ 18 SEP 2026 on logs/http/, 243 camera-runs from 17 Sep 05:40: 4,224 of
+# 13,005 requests refused, 32.5% against the 51.4% baseline, and 42.4% over the
+# same 22:29 to 00:44 window the baseline was taken in. Frames per camera-run
+# are unchanged, 15.3 against 16.5.
+#
+# BUT THE OUTCOME SPLIT IN TWO. Per camera-run the rate is bimodal: 101 of 243
+# runs under 10%, 31 runs at 90 to 100%. Eleven camera-runs were refused on
+# every one of their 38 requests for the whole 12 minutes, which is a shape
+# that never occurred with a throwaway client per request, and each of those
+# failed its job. All eleven carry nsess 1 and nok 0: the session never got a
+# successful response, so it never held a `__cf_bm` cookie, and it kept
+# presenting the same refused connection for the whole window. A fresh client
+# was a fresh roll; a stuck session is stuck until the run ends.
+#
+# SO THE SESSION IS DROPPED WHEN IT IS NOT WORKING, ADDED 18 SEP 2026, and the
+# rule is deliberately asymmetric because the two cases are not alike:
+#   - a session that has NEVER succeeded holds no cookie and has nothing to
+#     protect, so it is dropped after SESS_RETRY consecutive 403s.
+#   - a session that HAS succeeded holds a cookie worth keeping, so it is
+#     dropped only at a cooldown, when things are already bad.
+# SESSION=0 reverts to a throwaway client per request.
 SESSION = os.getenv("SESSION", "1") != "0"
+SESS_RETRY = int(os.getenv("SESS_RETRY", 2))
 
 
 # SCHEMA HISTORY, because the logs change shape mid-file and any analysis has
@@ -479,8 +498,9 @@ class Watcher:
         self.nreq = self.n403 = 0        # every request, and the refused ones
         self.nok = self.ncool = 0        # successful fetches, cooldowns taken
         self.awake = False
-        self.sess = None                 # one curl_cffi Session for the run
+        self.sess = None                 # the camera's curl_cffi Session
         self.nsess = 0                   # sessions opened, so a churn shows
+        self.sess_ok = False             # has THIS session ever been served?
 
     # --- state -------------------------------------------------------------
     def load(self):
@@ -583,6 +603,7 @@ class Watcher:
         if self.sess is None:
             self.sess = _cc.Session(impersonate=IMPERSONATE, headers=CC_HDRS)
             self.nsess += 1
+            self.sess_ok = False
         return self.sess
 
     def drop_session(self):
@@ -593,6 +614,7 @@ class Watcher:
             except Exception:
                 pass
             self.sess = None
+            self.sess_ok = False
 
     def grab(self):
         params = {"t": int(time.time() * 1000)}
@@ -663,6 +685,7 @@ class Watcher:
                 raw, etag, lm = self.grab()
                 self.f403 = 0
                 self.nok += 1
+                self.sess_ok = True
                 key = etag or hashlib.md5(raw).hexdigest()
                 if key in seen:
                     time.sleep(POLL); continue
@@ -673,11 +696,19 @@ class Watcher:
                 log(f"[{self.name}] 403 Forbidden "
                     f"({self.f403}/{FORBID_MAX} consecutive)"
                     + (f" [{e}]" if self.f403 == 1 else ""))
+                if not self.sess_ok and self.f403 >= SESS_RETRY:
+                    # This session has never been served, so it holds no
+                    # cookie. Drop it and take a fresh roll on a new
+                    # connection rather than sit out the window.
+                    self.drop_session()
                 if self.f403 >= FORBID_MAX:
                     # COOL DOWN, DO NOT BREAK (11 Sep 2026). Breaking here
                     # ended the camera's window after ~40 s of challenges.
                     # The save/flush/write below still runs at the deadline.
                     self.ncool += 1
+                    # A cooldown means the cookie, if there is one, is not
+                    # helping. Start the next window on a clean session.
+                    self.drop_session()
                     wait = max(0, min(COOLDOWN, deadline - time.time()))
                     log(f"[{self.name}] {FORBID_MAX} consecutive 403s, "
                         f"cooling down {wait:.0f} s")
