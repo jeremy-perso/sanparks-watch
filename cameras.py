@@ -77,7 +77,16 @@ CAMERAS = [
         "thr": {
             "DOM_MIN":   0.0,    # see the note above: dom is a night rule
             "BLOB_MIN":  45,     # natural daylight blobs top out at 66...
-            "FILL_CMP":  0.40,   # ...and the ones that big are thin smears
+            # FILL_CMP 0.40 -> 0.30 ON 20 SEP 2026, inseparably with NB_MAX
+            # below. Measured that day by replaying the live is_hit over
+            # logs/nossob/ for 30 Aug to 18 Sep, 14,139 daylight rows, against
+            # the refreshed label files: 0.30 ALONE MOVES NOTHING, 6 of 29
+            # daylight priority frames before and after, 142 of 863 reviewed
+            # empties before and after. With NB_MAX 250 it takes recall 8 -> 11
+            # and empties 172 -> 207. The Nossob proof row is the dove flock of
+            # 06 07:38:20, nblobs 50 against NB_MAX 25 AND fill 0.32 against
+            # FILL_CMP 0.40: neither gate recovers it alone.
+            "FILL_CMP":  0.30,
             "FILL_WIDE": 0.62,
             "ASP_MAX":   2.4,
             # Dawn is this camera's worst hour. Between 06:00 and 08:00 local
@@ -87,7 +96,27 @@ CAMERAS = [
             # background caught up, and four of those frames scored hits with
             # nothing in them. They fragment (nblobs 48-141), so NB_MAX is what
             # catches them; all four are rejected at 25.
-            "NB_MAX":    25,
+            # NB_MAX 25 -> 250 ON 20 SEP 2026, inseparably with FILL_CMP
+            # above. Measured the same day on the same replay: 250 alone takes
+            # daylight priority recall 6 -> 8 of 29 and reviewed empties
+            # 142 -> 172 of 863; with FILL_CMP 0.30 it is 11 of 29 for 207.
+            # Hits go from 8.9 to 77.5 a day at this camera.
+            #
+            # THE DAWN FAMILY DESCRIBED ABOVE IS THE PRICE AND IT IS KNOWN.
+            # Three of the four 31 Aug dawn frames leak again at 250. That is
+            # recorded, not hidden: selftest.py carries them with
+            # FP_MAX[("nossob","day")] raised 0 -> 3 in the same delivery. The
+            # reason it is now acceptable and was not on 31 Aug is that 863
+            # eye-confirmed Nossob daylight empties exist to price it against,
+            # where four frames were all there was. The new leaks are NOT a
+            # dawn family: they spread flat across 04:00-15:59 UTC, peaking at
+            # 38 in the 07:00 hour, measured 20 Sep 2026.
+            #
+            # DIST_MAX 8.0 AND FILL_WIDE 0.26 WERE PRICED THE SAME DAY AND NOT
+            # TAKEN. Added on top they buy 7 more priority frames for 168 more
+            # leaked empties and 220 hits a day. Do not add them as a pair
+            # without re-pricing; each is inert alone.
+            "NB_MAX":    250,
             "DIST_MAX":  6.0,
         },
 

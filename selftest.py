@@ -352,7 +352,13 @@ REAL_ANIMAL[("talamati", "day")] = [
 # talamati day 1 ADDED 4 SEP 2026 LATE EVENING with DIST_MAX 8.0. 0/1 before
 # tonight, 1/1 after. It is the first Talamati recall floor of any kind, in
 # either mode, that this file has ever carried.
-REAL_MIN = {("nossob", "night"): 51, ("nossob", "day"): 2,
+#
+# nossob day 2 -> 3 ON 20 SEP 2026 with NB_MAX 250 and FILL_CMP 0.30. The row
+# that moves is the BATELEUR at the pan, 01 13:52:18Z: nblobs above 25 was the
+# first gate it failed. The wider-preset bateleur of 01 13:55:14Z and the blue
+# wildebeest pair of 01 12:59:04Z still miss, so this is 3 of 5 and not 5 of 5.
+# It is the first time this camera's daylight recall floor has moved.
+REAL_MIN = {("nossob", "night"): 51, ("nossob", "day"): 3,
             ("satara", "day"): 3, ("talamati", "day"): 1}
 
 # --- CONFIRMED empty: real frames, eyes on the JPEG, nothing in them ---------
@@ -564,7 +570,28 @@ CONFIRMED_FP = {
 # config, so talamati night is now 8 of 25 rather than 8 of 21 and satara night
 # opens at 0 of 1. A cap that does not move when the denominator grows is the
 # only honest way to add negatives.
-FP_MAX = {("nossob", "day"): 0, ("nossob", "night"): 43,
+#
+# RAISED 0 -> 3 FOR NOSSOB DAY ON 20 SEP 2026, deliberately, in the same
+# delivery as NB_MAX 25 -> 250 and FILL_CMP 0.40 -> 0.30 at Nossob daylight,
+# and said out loud here as the rule above requires. THE LEAKED ROWS, NAMED:
+#   dawn 06:48 local   blob 61  13x6  fill 0.78  dom 0.26  dist 4.9  nblobs 48
+#   dawn 07:18 local   blob 58  15x8  fill 0.48  dom 0.13  dist 3.6  nblobs 103
+#   dawn 07:38 local   blob 308 61x7  fill 0.72  dom 0.68  dist 4.7  nblobs 52
+# All three are rejected today on nblobs alone, 48/103/52 against NB_MAX 25,
+# and all three reach the size and fill gates at 250. dawn 06:21 local still
+# fails, on nblobs 9 it never needed NB_MAX for, so the cap is 3 and not 4.
+#
+# WHY IT IS ACCEPTED. This set is four frames. The Nossob review pass of
+# 8-18 September 2026 yields 863 eye-confirmed NOSSOB DAYLIGHT EMPTY frames and
+# 29 daylight priority frames. Measured 20 Sep 2026 by replaying the live
+# is_hit over logs/nossob/ of 30 Aug to 18 Sep: the pair takes priority recall
+# 6 -> 11 of 29 and leaks 142 -> 207 of 863. Three more leaks in a four-frame
+# synthetic set is the same trade at 200x the sample size.
+#
+# THIS IS THE SAME SHAPE AS THE TALAMATI NATURAL_CAP RAISE OF 7 SEP 2026 and
+# for the same reason: a real negative set now exists where none did when the
+# cap was written.
+FP_MAX = {("nossob", "day"): 3, ("nossob", "night"): 43,
           ("talamati", "night"): 8, ("satara", "night"): 0}
 
 # THE ONE THING THE 4 SEP EVENING BUNDLE SHIPPED WITHOUT, AND IT IS A GAP, NOT
@@ -702,11 +729,22 @@ EXPECT_MIN = {
 # pasted into real frames and the dist and nblobs are population medians
 # standing in for each frame's own value.
 #
-# NOSSOB STAYS AT ZERO and must. Its NB_MAX is still 25 against a daylight
-# median of 38, so nothing about a Nossob daylight target's geometry is
-# consulted either. That is the untouched control in this bundle.
+# NOSSOB STAYED AT ZERO UNTIL 20 SEP 2026 and no longer does. The sentence
+# that used to sit here said Nossob was the untouched control in the 4 Sep
+# bundle, which it was; NB_MAX 25 against a daylight median nblobs of 38 meant
+# nothing about a Nossob daylight target's geometry was ever consulted. At
+# NB_MAX 250 it is, and the gemsbok-sized target clears the size, dominance,
+# aspect and fill gates: 0 -> 8 of 8. The jackal-sized target stays at 0 of 8
+# and that is the honest reading of what this change buys at this camera: a
+# gemsbok, not a jackal.
+#
+# READ THIS FOR WHAT IT IS, exactly as for Talamati above. It says a Nossob
+# daylight frame can now be judged at all. It does not say the detector will
+# catch a gemsbok, because these are synthetic targets pasted into real frames
+# and the dist and nblobs are population medians standing in for each frame's
+# own value.
 EXPECT_FIELD = {
-    ("nossob", "day", "gemsbok 200x140"):   0,
+    ("nossob", "day", "gemsbok 200x140"):   8,
     ("nossob", "day", "jackal 80x55"):      0,
     ("talamati", "day", "elephant 400x300"): 5,
     ("talamati", "day", "gemsbok 200x140"):  2,
