@@ -41,7 +41,7 @@ on:
         required: false
         default: 'nossob,talamati,satara'
       roots:
-        description: 'Which archive dirs: hits, frames, or both'
+        description: 'Which archive dirs, comma-separated: hits, frames, or hits,frames. The word "both" is NOT accepted and silently matches nothing'
         required: false
         default: 'hits'
       md_min:
