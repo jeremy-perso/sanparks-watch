@@ -119,3 +119,6 @@ utc,cam,nreq,n403,nok,ncool,nsess,frames,hits,window_s,poll,session,impersonate
 2026-09-21 12:02:06,nossob,60,3,57,0,3,24,6,727,10,1,chrome
 2026-09-21 12:02:06,talamati,57,9,48,1,8,20,6,727,10,1,chrome
 2026-09-21 12:02:06,satara,56,15,41,2,6,15,4,727,10,1,chrome
+2026-09-21 12:25:41,nossob,61,2,59,0,2,26,9,731,10,1,chrome
+2026-09-21 12:25:41,talamati,61,4,57,0,4,21,6,731,10,1,chrome
+2026-09-21 12:25:41,satara,62,2,60,0,2,22,13,731,10,1,chrome
