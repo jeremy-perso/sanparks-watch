@@ -877,16 +877,35 @@ CAMERAS = [
             "NB_MAX":    250,
         },
 
-        # NIGHT IS UNTOUCHED BY THE 4 SEP EVENING BUNDLE, on purpose. Satara
-        # night is not stopped by NB_MAX or by the fill floor: it is stopped by
-        # PIX_THR 26 against a low-contrast IR scene. Night px median is 27 of
-        # about 75,000 visible pixels and blob is exactly 0 on 57.4% of night
-        # rows, and the 03 22:49:03 quadruped (visible to the eye at about
-        # 9.6 x 6.4 blocks) logs px 49 and blob 2. No value of NB_MAX,
-        # FILL_CMP, BLOB_MIN, DIST_MAX or DOM_MIN reaches that frame.
+        # BLOB_MIN 90 -> 50 ON 21 SEP 2026. THE ONE THRESHOLD CHANGE OF THAT
+        # SESSION.
+        #
+        # Measured by replaying the live is_hit over logs/satara/ of 8 to 21
+        # Sep 2026 (12,089 night rows, 14 closed UTC days) against the Satara
+        # review pass of 8 to 18 Sep: 9 night animal keys, 8 of them priority,
+        # and 180 eye-confirmed night empties.
+        #   BLOB_MIN 90   1 animal   4 empties   1.1 hits/day   <- was live
+        #   BLOB_MIN 60   2          4           1.7
+        #   BLOB_MIN 50   3          5           2.6            <- CHOSEN
+        #   BLOB_MIN 30   4          9           5.4
+        # The two animals it adds were drawn with the logged box and the box is
+        # on the animal in both: 14 Sep 20:49:54 p31 blob 72 16x12, and
+        # 14 Sep 21:35:11 p23 blob 51 12x6. The empty it adds is 17 Sep
+        # 22:32:39 p30 blob 57 9x8. 18 of the 21 added hits were never reviewed,
+        # because night non-hits were archived only as the TOP_N capture.
+        #
+        # THE MARGIN IS THIN, SAID OUT LOUD. 51 is the smallest confirmed
+        # animal this value catches. 12 Sep 22:30:56 (blob 34, box on it) and
+        # 16 Sep 19:10:10 (blob 8, box on it) are still missed on size, and
+        # 11 Sep 17:59:14 (blob 87, aspect 2.25, fill 0.60) on FILL_WIDE 0.80.
+        #
+        # PIX_THR 26 IS NOT THE GENERAL BINDING CONSTRAINT HERE. It binds on the
+        # 03 22:49:03 quadruped (px 49, blob 2) and on no other confirmed night
+        # animal: five of the six drawn on-animal night rows of 8 to 18 Sep are
+        # measured and rejected on size or fill, downstream of it.
         "thr_night": {
             "PIX_THR":   26,
-            "BLOB_MIN":  90,
+            "BLOB_MIN":  50,
             "DOM_MIN":   0.40,
             "FILL_CMP":  0.36,
             "FILL_WIDE": 0.80,

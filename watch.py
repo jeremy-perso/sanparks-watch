@@ -57,6 +57,31 @@ FORCE   = os.getenv("FORCE_ALL_HOURS", "") == "1" # ignore the active-hours gate
 # and erodes detector coverage through checkout time. A window that names its
 # own date expires on its own, so forgetting to revert this line is free.
 COLLECT_ALL = os.getenv("COLLECT_ALL", "").strip()
+# JOB_T0 / JOB_BUDGET, ADDED 21 SEP 2026. The deadline is capped so that this
+# process finishes JOB_BUDGET seconds after the JOB started, not RUNTIME
+# seconds after python started. watch.yml records JOB_T0 in its first step,
+# before checkout.
+#
+# WHY. timeout-minutes 15 counts from job start, and checkout time is not
+# constant: 27 s on the green run of 18 Sep 10:29 UTC against 3m25s on the run
+# of 16 Sep 09:37 UTC, which was killed at 15:12 with its deadline still 30 s
+# away. A killed run lost every CSV row of all three cameras, because rows were
+# written only at the deadline, while its hit JPEGs, written immediately, were
+# committed by the if: always() step. The tree holds 50 such orphaned hits in
+# 8 incidents, 30 Aug to 22 Sep 2026: a lower bound, since a killed run that
+# fired nothing leaves no trace.
+#
+# WHY 810. 900 s of timeout, minus ~5 s of post-steps (cache save and push,
+# measured 18 Sep), minus the worst overshoot past the deadline: one in-flight
+# fetch (timeout 25 s), one ntfy post (15 s) and one backoff sleep (20 s).
+# Measured overshoot is 14 s. A normal setup is 53 s, so 53 + RUNTIME 720 =
+# 773 and the cap does not bind; it binds only when setup exceeds 90 s, and
+# then the run polls less instead of being killed.
+#
+# Rows are ALSO written as they happen (write_row), so even a kill that beats
+# this cap loses at most the frame in flight.
+JOB_T0     = os.getenv("JOB_T0", "").strip()
+JOB_BUDGET = int(os.getenv("JOB_BUDGET", 810))
 # Measured 30 Aug 2026: with curl_cffi, Nossob fetched fine while Talamati's
 # very first request was refused. One 403 used to kill a camera for the whole
 # run, so a transient refusal cost the entire session. Only give up after this
@@ -548,7 +573,7 @@ class Watcher:
         self.logs.mkdir(parents=True, exist_ok=True)
         self.presets, self.etag = [], None
         self.next_id = 0        # monotonic, so eviction never reuses an id
-        self.rows, self.keep = [], []
+        self.keep = []
         self.nhits = self.nframes = 0
         self.ncollect = 0        # frames archived by a COLLECT_ALL window
         self.forbidden = False
@@ -597,10 +622,18 @@ class Watcher:
             "presets": [{"id": m["id"], "sig": np.round(m["sig"], 2).tolist(),
                          "n": m["n"], "seen": m["seen"]} for m in self.presets]}, indent=1))
 
-    def write_csv(self):
-        if not self.rows:
-            return
-        day = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
+    def write_row(self, row):
+        """Append ONE row to today's log the moment it is observed.
+
+        CHANGED 21 SEP 2026 from write_csv(), which wrote every row of the run
+        at the deadline. A run killed by timeout-minutes lost all its rows
+        while its hit JPEGs, written immediately, were still committed. Now a
+        row reaches disk before its hit JPEG does, so a JPEG never exists
+        without its row. The day is taken from the row itself, so a run that
+        straddles midnight UTC files each row under its own date. Each camera
+        writes its own file from its own thread, so there is no contention.
+        """
+        day = row["utc"][:10].replace("-", "")
         # The camera name is in the DIRECTORY and in the FILENAME on purpose.
         # The directory keeps the repo tidy; the filename survives being
         # downloaded. Before 2 Sep 2026 this was just `{day}.csv`, so pulling
@@ -629,7 +662,7 @@ class Watcher:
             w = csv.DictWriter(fh, fieldnames=CSV_COLS)
             if new:
                 w.writeheader()
-            w.writerows(self.rows)
+            w.writerow(row)
 
     def _csv_path(self, day):
         """Today's log, rolled to a new suffix if the header on disk is a
@@ -786,7 +819,6 @@ class Watcher:
         self.drop_session()
         self.save()
         self.flush_keep()
-        self.write_csv()
 
     def handle(self, raw, lm):
         now   = datetime.datetime.now(datetime.timezone.utc)
@@ -875,7 +907,7 @@ class Watcher:
             f"nb={m['nb']} bact={m['bact']} veto={vetoed}/{veto30} "
             f"{'<== HIT' if hit else ''}")
 
-        self.rows.append(dict(utc=now.strftime("%Y-%m-%d %H:%M:%S"), last_modified=lm,
+        self.write_row(dict(utc=now.strftime("%Y-%m-%d %H:%M:%S"), last_modified=lm,
                               preset=best["id"], n=best["n"], dist=round(bd, 1),
                               dist2=round(min(bd2, 999.9), 1),
                               mode=mode, bright=round(bright, 1), px=m["px"],
@@ -965,6 +997,19 @@ def main():
             + (f" -- {len(live)} active today" if live
                else " -- NONE FOR TODAY, collecting as normal"))
     deadline = time.time() + RUNTIME
+    if JOB_T0:
+        try:
+            cap = float(JOB_T0) + JOB_BUDGET
+        except ValueError:
+            print(f"::warning::JOB_T0 {JOB_T0!r} is not a timestamp; "
+                  f"deadline not capped", flush=True)
+        else:
+            if cap < deadline:
+                print(f"::warning::slow setup: python started "
+                      f"{time.time() - float(JOB_T0):.0f} s into the job, "
+                      f"polling capped to {max(0, cap - time.time()):.0f} s "
+                      f"instead of {RUNTIME}", flush=True)
+                deadline = cap
     started = datetime.datetime.now(datetime.timezone.utc)
     started_ts = time.time()
     ws = [Watcher(c) for c in CAMERAS]
