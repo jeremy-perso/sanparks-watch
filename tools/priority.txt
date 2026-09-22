@@ -725,3 +725,72 @@ nossob/20260918/234212
 nossob/20260918/234456
 nossob/20260918/234507
 nossob/20260918/234653
+# ---------------------------------------------------------------------------
+# APPENDED 21 September 2026: 60 Satara frames of 8 to 18 September 2026
+# marked "losing it would matter = Yes" in satara_animal_frames.xlsx: 52
+# daylight, 8 night. The three moments reviewed as both a hits/ and a frames/
+# copy agree on both copies (16 Sep 07:15:21 No; 16 Sep 07:37:37 and 17 Sep
+# 13:00:09 Yes). 30 "Not sure" keys are in ground_truth.txt
+# and deliberately NOT here, because an undecided frame does not belong in a
+# recall denominator.
+# ---------------------------------------------------------------------------
+satara/20260908/203320
+satara/20260910/144111
+satara/20260911/153858
+satara/20260911/175914
+satara/20260912/044712
+satara/20260912/155403
+satara/20260912/223056
+satara/20260913/052106
+satara/20260913/100413
+satara/20260914/130510
+satara/20260914/170652
+satara/20260914/204954
+satara/20260914/213511
+satara/20260915/045505
+satara/20260915/130252
+satara/20260915/131948
+satara/20260915/180809
+satara/20260916/043850
+satara/20260916/073737
+satara/20260916/094217
+satara/20260916/094601
+satara/20260916/094613
+satara/20260916/094914
+satara/20260916/094951
+satara/20260916/095053
+satara/20260916/095105
+satara/20260916/095650
+satara/20260916/095714
+satara/20260916/095847
+satara/20260916/100358
+satara/20260916/100410
+satara/20260916/100455
+satara/20260916/100519
+satara/20260916/103702
+satara/20260916/125352
+satara/20260916/125408
+satara/20260916/125455
+satara/20260916/125806
+satara/20260916/125857
+satara/20260916/130857
+satara/20260916/130913
+satara/20260916/131052
+satara/20260916/131104
+satara/20260916/131251
+satara/20260916/131350
+satara/20260916/131449
+satara/20260916/131517
+satara/20260916/131708
+satara/20260916/132858
+satara/20260916/133012
+satara/20260916/135113
+satara/20260916/150505
+satara/20260916/191010
+satara/20260917/040353
+satara/20260917/130009
+satara/20260917/154606
+satara/20260918/040453
+satara/20260918/040705
+satara/20260918/055411
+satara/20260918/141714
