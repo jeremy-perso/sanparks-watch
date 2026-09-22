@@ -103,6 +103,14 @@ jobs:
     # waits. At 15 a hang costs about one run; at 30 it would cost two or three.
     timeout-minutes: 15
     steps:
+      # FIRST, BEFORE CHECKOUT. ADDED 21 SEP 2026. watch.py caps its deadline
+      # at JOB_T0 + JOB_BUDGET so a slow checkout shortens the poll instead of
+      # getting the job killed at timeout-minutes with every CSV row still in
+      # memory. Measured: checkout 27 s on 18 Sep 10:29 UTC, 3m25s on 16 Sep
+      # 09:37 UTC (run #1379, killed). See JOB_T0 in watch.py.
+      - name: Record job start
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -127,6 +135,10 @@ jobs:
           NTFY_TOPIC:      ${{ secrets.NTFY_TOPIC }}
           RUNTIME:         ${{ inputs.runtime || '720' }}
           COLLECT:         ${{ inputs.collect || 'top' }}
+          # Seconds after job start by which watch.py must finish polling.
+          # 900 s of timeout minus post-steps and worst overshoot. Does not
+          # bind on a normal 53 s setup. See JOB_T0 in watch.py.
+          JOB_BUDGET:      "810"
           # BACK TO 1 ON 4 SEP 2026 EVENING. DECIDED EXPLICITLY, and the
           # reason has changed rather than the argument being lost.
           #
@@ -184,15 +196,32 @@ jobs:
           # this line in place costs nothing. Set it to "" to be explicit.
           # Format: "YYYYMMDD HH:MM-HH:MM", comma-separated, end exclusive.
           #
-          # SAST is UTC+2 and `night` flips at local hour 18, i.e. 16:00 UTC.
-          #   14:45-15:45 UTC = 16:45-17:45 SAST, daylight mode throughout.
-          #     Nossob's strongest hour: 42% of its frames/ captures in the
-          #     17:00 SAST hour carry an MD box at 0.6+, on 57 captures,
-          #     8-16 Sep 2026, against 21-36% either side.
-          #   17:30-18:15 UTC = 19:30-20:15 SAST, night mode throughout.
-          #     Night is the under-sampled mode: Satara fired 9 times in ten
-          #     days and Talamati night has no frames/ capture above 0.6.
-          COLLECT_ALL: "20260918 14:45-15:45,20260918 17:30-18:15"
+          # SAST is UTC+2 and `night` flips at local hour 18, i.e. 16:00 UTC;
+          # daylight mode starts at local 06, i.e. 04:00 UTC.
+          #
+          # CURRENT WINDOWS: 23 SEP 2026, SATARA DAYLIGHT, SET 22 SEP 2026.
+          # Purpose: the first unbiased daylight sample at Satara, to measure
+          # stage 1's TRUE daylight recall and where its box lands, so that
+          # stage 1 can be improved on its own evidence rather than leaning on
+          # MegaDetector. Every frame of 8-18 Sep was archived only because
+          # stage 1 fired or it was the run's TOP_N capture, so recall on that
+          # set was 52 of 52 by construction. Windows chosen on the 52 Satara
+          # daylight priority animals of 8-18 Sep by UTC hour:
+          #   04:15-05:15 UTC = 06:15-07:15 SAST   dawn: 6 priority at 04 UTC,
+          #                                        and the dawn false-positive
+          #                                        family
+          #   09:00-10:30 UTC = 11:00-12:30 SAST   16 priority at 09-10 UTC
+          #   12:45-14:15 UTC = 14:45-16:15 SAST   16 priority at 13 UTC
+          # 4 hours. At ~8 MB of archived JPEG an hour across the three cameras
+          # (190 MB a day standing, state.md) that is about 32 MB. The window is
+          # global, so Nossob and Talamati collect too; only Satara is meant to
+          # be reviewed. REVIEW ONLY AFTER 23 SEP HAS CLOSED, drawn with
+          # draw_boxes --roots frames --cameras satara --dates 20260923
+          # --only unreviewed and NO --md-min: a floor would re-bias the sample.
+          #
+          # PREVIOUS WINDOWS, expired: 18 Sep 2026 14:45-15:45 UTC (Nossob's
+          # strongest daylight hour) and 17:30-18:15 UTC (night). Not yet read.
+          COLLECT_ALL: "20260923 04:15-05:15,20260923 09:00-10:30,20260923 12:45-14:15"
         run: python watch.py
 
       - name: Save preset backgrounds
