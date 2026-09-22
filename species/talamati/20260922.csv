@@ -1,0 +1,19 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-22 00:06:06,2026-09-22 02:06:06,talamati,night,3239,frames,148,0.0,0,0.15,blank,,0.8795,0,,,,,4.0.3a,frames/talamati/20260922/000606_p3239_blob0148_f0.34.jpg
+2026-09-22 00:11:53,2026-09-22 02:11:53,talamati,night,3241,hits,109,0.0227,0,0.15,blank,,0.9913,1,3.4,2.7,0.186,0.688,4.0.3a,hits/talamati/20260922/001153_p3241_blob109.jpg
+2026-09-22 00:40:11,2026-09-22 02:40:11,talamati,night,3239,frames,52,0.0,0,0.15,blank,,0.8977,0,,,,,4.0.3a,frames/talamati/20260922/004011_p3239_blob0052_f0.46.jpg
+2026-09-22 01:00:05,2026-09-22 03:00:05,talamati,night,3253,frames,790,0.0,0,0.15,blank,,0.8183,0,,,,,4.0.3a,frames/talamati/20260922/010005_p3253_blob0790_f0.36.jpg
+2026-09-22 01:12:56,2026-09-22 03:12:56,talamati,night,3041,frames,85,0.0,0,0.15,blank,,0.9654,0,,,,,4.0.3a,frames/talamati/20260922/011256_p3041_blob0085_f0.64.jpg
+2026-09-22 01:28:50,2026-09-22 03:28:50,talamati,night,3266,frames,449,0.0,0,0.15,blank,,0.9442,2,94.9,49.4,0.494,0.503,4.0.3a,frames/talamati/20260922/012850_p3266_blob0449_f0.35.jpg
+2026-09-22 01:29:50,2026-09-22 03:29:50,talamati,night,3240,hits,102,0.165,1,0.15,blank,,0.9788,2,4.0,10.6,0.021,0.653,4.0.3a,hits/talamati/20260922/012950_p3240_blob102.jpg
+2026-09-22 01:32:13,2026-09-22 03:32:13,talamati,night,3243,hits,99,0.0581,0,0.15,blank,,0.5138,3,22.6,37.4,0.118,0.37,4.0.3a,hits/talamati/20260922/013213_p3243_blob99.jpg
+2026-09-22 01:40:01,2026-09-22 03:40:01,talamati,night,3241,frames,177,0.0,0,0.15,blank,,0.996,0,,,,,4.0.3a,frames/talamati/20260922/014001_p3241_blob0177_f0.55.jpg
+2026-09-22 01:47:01,2026-09-22 03:47:01,talamati,night,3243,hits,102,0.1057,0,0.15,blank,,0.8308,4,21.3,15.6,0.86,0.853,4.0.3a,hits/talamati/20260922/014701_p3243_blob102.jpg
+2026-09-22 01:47:13,2026-09-22 03:47:13,talamati,night,3243,hits,114,0.0348,0,0.15,blank,,0.924,5,21.7,15.5,0.856,0.854,4.0.3a,hits/talamati/20260922/014713_p3243_blob114.jpg
+2026-09-22 01:51:50,2026-09-22 03:51:50,talamati,night,3039,hits,98,0.0,0,0.15,blank,,0.9955,0,,,,,4.0.3a,hits/talamati/20260922/015150_p3039_blob98.jpg
+2026-09-22 02:11:14,2026-09-22 04:11:14,talamati,night,3243,hits,155,0.0604,0,0.15,blank,,0.5376,2,23.0,16.2,0.855,0.848,4.0.3a,hits/talamati/20260922/021114_p3243_blob155.jpg
+2026-09-22 02:13:06,2026-09-22 04:13:06,talamati,night,3239,frames,185,0.0,0,0.15,blank,,0.9739,1,25.4,11.7,0.576,0.563,4.0.3a,frames/talamati/20260922/021306_p3239_blob0185_f0.34.jpg
+2026-09-22 02:32:08,2026-09-22 04:32:08,talamati,night,2929,frames,252,0.0,0,0.15,blank,,0.9825,0,,,,,4.0.3a,frames/talamati/20260922/023208_p2929_blob0252_f0.67.jpg
+2026-09-22 02:32:57,2026-09-22 04:32:57,talamati,night,3239,hits,131,0.0217,0,0.15,blank,,0.7596,1,7.8,5.7,0.48,0.668,4.0.3a,hits/talamati/20260922/023257_p3239_blob131.jpg
+2026-09-22 02:33:09,2026-09-22 04:33:09,talamati,night,3239,hits,116,0.0111,0,0.15,blank,,0.9956,1,11.3,4.2,0.383,0.702,4.0.3a,hits/talamati/20260922/023309_p3239_blob116.jpg
+2026-09-22 02:37:16,2026-09-22 04:37:16,talamati,night,2929,hits,197,0.0,0,0.15,blank,,0.9887,0,,,,,4.0.3a,hits/talamati/20260922/023716_p2929_blob197.jpg
