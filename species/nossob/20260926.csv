@@ -1,0 +1,13 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-26 00:03:55,2026-09-26 02:03:55,nossob,night,18,hits,3,0.3677,1,0.15,no cv result,no cv result,0.9751,3,5.0,3.5,0.925,0.402,4.0.3a,hits/nossob/20260926/000355_p18_blob3.jpg
+2026-09-26 00:25:35,2026-09-26 02:25:35,nossob,night,77,frames,15,0.0561,0,0.15,blank,,0.957,3,24.1,6.3,0.168,0.379,4.0.3a,frames/nossob/20260926/002535_p77_blob0015_f0.43.jpg
+2026-09-26 00:54:16,2026-09-26 02:54:16,nossob,night,77,frames,10,0.072,0,0.15,blank,,0.987,5,2.0,4.1,0.011,0.468,4.0.3a,frames/nossob/20260926/005416_p77_blob0010_f0.42.jpg
+2026-09-26 01:09:14,2026-09-26 03:09:14,nossob,night,77,frames,148,0.846,1,0.15,mammal,mammalia,0.6623,1,18.9,16.0,0.098,0.15,4.0.3a,frames/nossob/20260926/010914_p77_blob0148_f0.54.jpg
+2026-09-26 01:10:13,2026-09-26 03:10:13,nossob,night,11,hits,16,0.7934,1,0.15,canine family,mammalia,0.7203,5,5.4,5.4,0.712,0.615,4.0.3a,hits/nossob/20260926/011013_p11_blob16.jpg
+2026-09-26 01:20:18,2026-09-26 03:20:18,nossob,night,18,hits,4,0.3643,1,0.15,no cv result,no cv result,0.9183,3,5.3,4.3,0.925,0.398,4.0.3a,hits/nossob/20260926/012018_p18_blob4.jpg
+2026-09-26 01:27:18,2026-09-26 03:27:18,nossob,night,15,frames,50,0.0,0,0.15,blank,,0.9795,1,29.2,16.0,0.792,0.328,4.0.3a,frames/nossob/20260926/012718_p15_blob0050_f0.43.jpg
+2026-09-26 01:34:19,2026-09-26 03:34:19,nossob,night,331,frames,45,0.0148,0,0.15,blank,,0.9941,4,3.0,1.8,0.498,0.372,4.0.3a,frames/nossob/20260926/013419_p331_blob0045_f0.38.jpg
+2026-09-26 01:50:08,2026-09-26 03:50:08,nossob,night,15,frames,35,0.0,0,0.15,blank,,0.9776,1,29.2,15.6,0.792,0.322,4.0.3a,frames/nossob/20260926/015008_p15_blob0035_f0.38.jpg
+2026-09-26 02:05:10,2026-09-26 04:05:10,nossob,night,13,frames,23,0.0,0,0.15,blank,,0.9991,1,13.8,7.3,0.634,0.387,4.0.3a,frames/nossob/20260926/020510_p13_blob0023_f0.41.jpg
+2026-09-26 02:26:35,2026-09-26 04:26:35,nossob,night,196,frames,19,0.0225,0,0.15,blank,,0.9354,5,5.9,13.1,0.237,0.477,4.0.3a,frames/nossob/20260926/022635_p196_blob0019_f0.59.jpg
+2026-09-26 02:29:12,2026-09-26 04:29:12,nossob,night,196,hits,4,0.0,0,0.15,blank,,0.9943,0,,,,,4.0.3a,hits/nossob/20260926/022912_p196_blob4.jpg
