@@ -1,0 +1,12 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-29 00:02:17,2026-09-29 02:02:17,nossob,night,196,hits,9,0.0134,0,0.15,blank,,0.9957,3,14.4,2.1,0.428,0.569,4.0.3a,hits/nossob/20260929/000217_p196_blob9.jpg
+2026-09-29 00:24:53,2026-09-29 02:24:53,nossob,night,16,frames,42,0.0,0,0.15,blank,,0.9989,0,,,,,4.0.3a,frames/nossob/20260929/002453_p16_blob0042_f0.44.jpg
+2026-09-29 00:45:59,2026-09-29 02:45:59,nossob,night,196,frames,147,0.0324,0,0.15,blank,,0.9947,3,2.3,3.2,0.354,0.555,4.0.3a,frames/nossob/20260929/004559_p196_blob0147_f0.54.jpg
+2026-09-29 00:47:00,2026-09-29 02:47:00,nossob,night,18,hits,4,0.7742,1,0.15,canis species,mammalia,0.7849,4,2.6,3.7,0.63,0.338,4.0.3a,hits/nossob/20260929/004700_p18_blob4.jpg
+2026-09-29 00:48:01,2026-09-29 02:48:01,nossob,night,77,hits,25,0.8616,1,0.15,canine family,mammalia,0.9577,1,7.9,13.5,0.858,0.166,4.0.3a,hits/nossob/20260929/004801_p77_blob25.jpg
+2026-09-29 01:04:11,2026-09-29 03:04:11,nossob,night,16,frames,74,0.1772,1,0.15,blank,,0.9656,2,3.0,1.6,0.387,0.414,4.0.3a,frames/nossob/20260929/010411_p16_blob0074_f0.42.jpg
+2026-09-29 01:30:01,2026-09-29 03:30:01,nossob,night,196,frames,160,0.0167,0,0.15,blank,,0.9931,2,2.5,3.2,0.354,0.557,4.0.3a,frames/nossob/20260929/013001_p196_blob0160_f0.53.jpg
+2026-09-29 01:50:03,2026-09-29 03:50:03,nossob,night,13,frames,147,0.0103,0,0.15,blank,,0.9996,2,19.8,11.3,0.702,0.36,4.0.3a,frames/nossob/20260929/015003_p13_blob0147_f0.45.jpg
+2026-09-29 01:57:11,2026-09-29 03:57:11,nossob,night,16,frames,30,0.0119,0,0.15,blank,,0.9991,2,46.1,4.8,0.491,0.428,4.0.3a,frames/nossob/20260929/015711_p16_blob0030_f0.31.jpg
+2026-09-29 02:18:01,2026-09-29 04:18:01,nossob,night,8,frames,357,0.2229,1,0.15,no cv result,no cv result,0.969,5,18.0,4.9,0.684,0.421,4.0.3a,frames/nossob/20260929/021801_p8_blob0357_f0.32.jpg
+2026-09-29 02:38:59,2026-09-29 04:38:59,nossob,night,8,frames,592,0.0889,0,0.15,blank,,0.9942,2,96.0,41.2,0.5,0.613,4.0.3a,frames/nossob/20260929/023859_p8_blob0592_f0.54.jpg
