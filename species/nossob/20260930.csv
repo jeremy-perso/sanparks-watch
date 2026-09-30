@@ -1,0 +1,7 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-09-30 00:17:32,2026-09-30 02:17:32,nossob,night,196,frames,164,0.2084,1,0.15,no cv result,no cv result,0.9876,4,2.1,1.3,0.23,0.565,4.0.3a,frames/nossob/20260930/001732_p196_blob0164_f0.55.jpg
+2026-09-30 00:18:07,2026-09-30 02:18:07,nossob,night,331,hits,25,0.9248,1,0.15,canine family,mammalia,0.859,2,7.8,6.7,0.487,0.503,4.0.3a,hits/nossob/20260930/001807_p331_blob25.jpg
+2026-09-30 00:18:19,2026-09-30 02:18:19,nossob,night,331,hits,22,0.9248,1,0.15,canine family,mammalia,0.859,2,7.8,6.7,0.487,0.503,4.0.3a,hits/nossob/20260930/001819_p331_blob22.jpg
+2026-09-30 00:20:52,2026-09-30 02:20:52,nossob,night,331,hits,16,0.5556,1,0.15,animal,,0.5556,3,4.8,3.3,0.928,0.4,4.0.3a,hits/nossob/20260930/002052_p331_blob16.jpg
+2026-09-30 00:22:15,2026-09-30 02:22:15,nossob,night,15,hits,27,0.0425,0,0.15,blank,,0.9558,2,5.7,2.7,0.92,0.325,4.0.3a,hits/nossob/20260930/002215_p15_blob27.jpg
+2026-09-30 00:23:02,2026-09-30 02:23:02,nossob,night,11,hits,7,0.6871,1,0.15,canis species,mammalia,0.8114,12,3.9,3.5,0.433,0.666,4.0.3a,hits/nossob/20260930/002302_p11_blob7.jpg
