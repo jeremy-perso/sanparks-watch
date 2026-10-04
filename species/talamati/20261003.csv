@@ -1,2 +1,7 @@
 utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
 2026-10-03 02:32:07,2026-10-03 04:32:07,talamati,night,4524,frames,423,0.0,0,0.15,blank,,0.9949,0,,,,,4.0.3a,frames/talamati/20261003/023207_p4524_blob0423_f0.23.jpg
+2026-10-03 08:32:00,2026-10-03 10:32:00,talamati,day,4344,frames,2444,0.5395,1,0.3,blank,,0.9923,4,2.6,1.7,0.55,0.636,4.0.3a,frames/talamati/20261003/083200_p4344_blob2444_f0.47.jpg
+2026-10-03 13:43:52,2026-10-03 15:43:52,talamati,day,4520,frames,3031,0.0,0,0.3,blank,,0.993,0,,,,,4.0.3a,frames/talamati/20261003/134352_p4520_blob3031_f0.58.jpg
+2026-10-03 17:49:05,2026-10-03 19:49:05,talamati,night,4524,frames,449,0.0,0,0.15,blank,,0.9976,0,,,,,4.0.3a,frames/talamati/20261003/174905_p4524_blob0449_f0.36.jpg
+2026-10-03 20:17:07,2026-10-03 22:17:07,talamati,night,4486,hits,203,0.0147,0,0.15,blank,,0.9951,3,2.2,1.9,0.266,0.479,4.0.3a,hits/talamati/20261003/201707_p4486_blob203.jpg
+2026-10-03 20:18:53,2026-10-03 22:18:53,talamati,night,4463,frames,216,0.0298,0,0.15,blank,,0.9941,4,2.8,2.5,0.272,0.418,4.0.3a,frames/talamati/20261003/201853_p4463_blob0216_f0.55.jpg
