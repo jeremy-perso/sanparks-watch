@@ -1,2 +1,12 @@
 utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
 2026-10-04 02:46:49,2026-10-04 04:46:49,talamati,night,4560,frames,35,0.0106,0,0.15,blank,,0.6715,1,7.9,9.4,0.467,0.385,4.0.3a,frames/talamati/20261004/024649_p4560_blob0035_f0.65.jpg
+2026-10-04 08:59:24,2026-10-04 10:59:24,talamati,day,4531,frames,2958,0.1828,0,0.3,blank,,0.9998,2,1.3,1.5,0.448,0.619,4.0.3a,frames/talamati/20261004/085924_p4531_blob2958_f0.57.jpg
+2026-10-04 09:03:23,2026-10-04 11:03:23,talamati,day,4332,hits,276,0.1457,0,0.3,blank,,0.992,2,1.7,3.3,0.623,0.283,4.0.3a,hits/talamati/20261004/090323_p4332_blob276.jpg
+2026-10-04 14:39:48,2026-10-04 16:39:48,talamati,day,4344,hits,156,0.2867,0,0.3,blank,,0.9969,2,2.6,1.7,0.549,0.637,4.0.3a,hits/talamati/20261004/143948_p4344_blob156.jpg
+2026-10-04 14:41:26,2026-10-04 16:41:26,talamati,day,4332,hits,231,0.2094,0,0.3,blank,,0.9966,3,1.6,3.2,0.624,0.278,4.0.3a,hits/talamati/20261004/144126_p4332_blob231.jpg
+2026-10-04 14:43:03,2026-10-04 16:43:03,talamati,day,4335,hits,199,0.0484,0,0.3,blank,,0.9992,4,1.5,0.9,0.437,0.465,4.0.3a,hits/talamati/20261004/144303_p4335_blob199.jpg
+2026-10-04 14:43:15,2026-10-04 16:43:15,talamati,day,4567,frames,1136,0.0256,0,0.3,blank,,0.9996,1,4.8,1.9,0.654,0.743,4.0.3a,frames/talamati/20261004/144315_p4567_blob1136_f0.33.jpg
+2026-10-04 14:46:18,2026-10-04 16:46:18,talamati,day,4332,hits,121,0.2554,0,0.3,no cv result,no cv result,0.9694,5,4.6,2.7,0.247,0.132,4.0.3a,hits/talamati/20261004/144618_p4332_blob121.jpg
+2026-10-04 14:47:06,2026-10-04 16:47:06,talamati,day,4531,hits,85,0.0638,0,0.3,blank,,0.9916,1,1.7,1.3,0.871,0.915,4.0.3a,hits/talamati/20261004/144706_p4531_blob85.jpg
+2026-10-04 18:24:30,2026-10-04 20:24:30,talamati,night,4560,frames,28,0.0,0,0.15,blank,,0.9964,0,,,,,4.0.3a,frames/talamati/20261004/182430_p4560_blob0028_f0.70.jpg
+2026-10-04 21:53:01,2026-10-04 23:53:01,talamati,night,4489,frames,295,0.0,0,0.15,blank,,0.9948,0,,,,,4.0.3a,frames/talamati/20261004/215301_p4489_blob0295_f0.57.jpg
