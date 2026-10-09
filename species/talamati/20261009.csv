@@ -1,0 +1,2 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-10-09 02:31:14,2026-10-09 04:31:14,talamati,night,4659,frames,192,0.0,0,0.15,blank,,0.9956,0,,,,,4.0.3a,frames/talamati/20261009/023114_p4659_blob0192_f0.50.jpg

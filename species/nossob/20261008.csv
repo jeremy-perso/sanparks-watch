@@ -1,3 +1,14 @@
 utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
 2026-10-08 02:56:12,2026-10-08 04:56:12,nossob,night,11,hits,3,0.0155,0,0.15,blank,,0.9908,2,2.9,1.9,0.833,0.68,4.0.3a,hits/nossob/20261008/025612_p11_blob3.jpg
 2026-10-08 03:00:56,2026-10-08 05:00:56,nossob,night,8,hits,18,0.0,0,0.15,blank,,0.6844,0,,,,,4.0.3a,hits/nossob/20261008/030056_p8_blob18.jpg
+2026-10-08 10:14:02,2026-10-08 12:14:02,nossob,day,502,frames,3367,0.5963,1,0.3,animal,,0.5963,10,6.4,4.9,0.967,0.423,4.0.3a,frames/nossob/20261008/101402_p502_blob3367_f0.65.jpg
+2026-10-08 10:15:19,2026-10-08 12:15:19,nossob,day,460,hits,223,0.176,0,0.3,blank,,0.9993,11,1.9,1.7,0.565,0.681,4.0.3a,hits/nossob/20261008/101519_p460_blob223.jpg
+2026-10-08 10:18:09,2026-10-08 12:18:09,nossob,day,580,hits,312,0.6091,1,0.3,animal,,0.6091,21,2.7,2.3,0.456,0.284,4.0.3a,hits/nossob/20261008/101809_p580_blob312.jpg
+2026-10-08 10:18:21,2026-10-08 12:18:21,nossob,day,460,hits,125,0.1539,0,0.3,blank,,0.9993,13,2.1,1.7,0.564,0.681,4.0.3a,hits/nossob/20261008/101821_p460_blob125.jpg
+2026-10-08 10:20:22,2026-10-08 12:20:22,nossob,day,443,hits,155,0.6205,1,0.3,animal,,0.6205,29,2.1,3.1,0.943,0.271,4.0.3a,hits/nossob/20261008/102022_p443_blob155.jpg
+2026-10-08 10:20:58,2026-10-08 12:20:58,nossob,day,580,hits,195,0.5901,1,0.3,animal,,0.5901,13,4.0,1.9,0.13,0.248,4.0.3a,hits/nossob/20261008/102058_p580_blob195.jpg
+2026-10-08 10:21:10,2026-10-08 12:21:10,nossob,day,460,hits,72,0.2063,0,0.3,blank,,0.9984,8,2.0,1.7,0.565,0.68,4.0.3a,hits/nossob/20261008/102110_p460_blob72.jpg
+2026-10-08 17:37:14,2026-10-08 19:37:14,nossob,night,15,frames,24,0.0,0,0.15,blank,,0.9853,1,28.9,15.0,0.797,0.319,4.0.3a,frames/nossob/20261008/173714_p15_blob0024_f0.30.jpg
+2026-10-08 17:37:50,2026-10-08 19:37:50,nossob,night,11,hits,6,0.8698,1,0.15,black-backed jackal,mammalia,0.6532,3,4.0,3.7,0.242,0.616,4.0.3a,hits/nossob/20261008/173750_p11_blob6.jpg
+2026-10-08 17:38:02,2026-10-08 19:38:02,nossob,night,11,hits,3,0.8698,1,0.15,black-backed jackal,mammalia,0.6532,3,4.0,3.7,0.242,0.616,4.0.3a,hits/nossob/20261008/173802_p11_blob3.jpg
+2026-10-08 22:33:08,2026-10-09 00:33:08,nossob,night,77,frames,26,0.0475,0,0.15,blank,,0.9971,6,6.6,2.8,0.418,0.437,4.0.3a,frames/nossob/20261008/223308_p77_blob0026_f0.27.jpg

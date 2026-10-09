@@ -1,2 +1,8 @@
 utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
 2026-10-08 03:05:53,2026-10-08 05:05:53,talamati,night,4463,frames,100,0.0405,0,0.15,blank,,0.9836,2,14.2,5.0,0.477,0.786,4.0.3a,frames/talamati/20261008/030553_p4463_blob0100_f0.39.jpg
+2026-10-08 10:14:05,2026-10-08 12:14:05,talamati,day,4586,hits,237,0.8148,1,0.3,african elephant,mammalia,0.8889,4,3.0,1.9,0.812,0.273,4.0.3a,hits/talamati/20261008/101405_p4586_blob237.jpg
+2026-10-08 10:15:53,2026-10-08 12:15:53,talamati,day,4531,hits,68,0.1107,0,0.3,blank,,0.9991,1,3.4,1.2,0.891,0.763,4.0.3a,hits/talamati/20261008/101553_p4531_blob68.jpg
+2026-10-08 10:17:54,2026-10-08 12:17:54,talamati,day,4604,frames,1874,0.2614,0,0.3,blank,,0.999,2,2.7,1.7,0.548,0.642,4.0.3a,frames/talamati/20261008/101754_p4604_blob1874_f0.42.jpg
+2026-10-08 10:21:08,2026-10-08 12:21:08,talamati,day,4335,hits,161,0.02,0,0.3,blank,,0.9994,4,1.4,0.8,0.436,0.463,4.0.3a,hits/talamati/20261008/102108_p4335_blob161.jpg
+2026-10-08 17:34:04,2026-10-08 19:34:04,talamati,night,4482,frames,364,0.0,0,0.15,blank,,0.9866,0,,,,,4.0.3a,frames/talamati/20261008/173404_p4482_blob0364_f0.69.jpg
+2026-10-08 22:31:48,2026-10-09 00:31:48,talamati,night,4659,frames,56,0.0,0,0.15,blank,,0.9999,1,1.1,1.4,0.753,0.523,4.0.3a,frames/talamati/20261008/223148_p4659_blob0056_f0.58.jpg
