@@ -5,3 +5,4 @@ utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,predic
 2026-10-09 09:34:11,2026-10-09 11:34:11,satara,day,150,hits,148,0.0,0,0.3,blank,,0.9808,0,,,,,4.0.3a,hits/satara/20261009/093411_p150_blob148.jpg
 2026-10-09 09:37:17,2026-10-09 11:37:17,satara,day,255,hits,711,0.5023,1,0.3,blank,,0.995,13,9.8,5.8,0.069,0.653,4.0.3a,hits/satara/20261009/093717_p255_blob711.jpg
 2026-10-09 16:33:33,2026-10-09 18:33:33,satara,night,4,frames,392,0.2156,1,0.15,blank,,0.9995,12,0.9,1.6,0.474,0.576,4.0.3a,frames/satara/20261009/163333_p4_blob0392_f0.31.jpg
+2026-10-09 21:21:59,2026-10-09 23:21:59,satara,night,23,frames,95,0.0347,0,0.15,blank,,0.9968,4,6.5,5.3,0.045,0.648,4.0.3a,frames/satara/20261009/212159_p23_blob0095_f0.50.jpg
