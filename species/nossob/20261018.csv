@@ -1,0 +1,8 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-10-18 01:04:03,2026-10-18 03:04:03,nossob,night,11,hits,7,0.1128,0,0.15,,,,4,1.9,1.5,0.827,0.679,4.0.3a,hits/nossob/20261018/010403_p11_blob7.jpg
+2026-10-18 01:05:06,2026-10-18 03:05:06,nossob,night,18,hits,15,0.3693,1,0.15,,,,9,6.5,4.3,0.807,0.17,4.0.3a,hits/nossob/20261018/010506_p18_blob15.jpg
+2026-10-18 01:05:23,2026-10-18 03:05:23,nossob,night,18,hits,8,0.0682,0,0.15,,,,10,5.0,3.3,0.521,0.428,4.0.3a,hits/nossob/20261018/010523_p18_blob8.jpg
+2026-10-18 01:07:55,2026-10-18 03:07:55,nossob,night,18,hits,7,0.0507,0,0.15,,,,6,3.8,2.1,0.449,0.33,4.0.3a,hits/nossob/20261018/010755_p18_blob7.jpg
+2026-10-18 01:09:59,2026-10-18 03:09:59,nossob,night,11,frames,378,0.0,0,0.15,,,,1,27.4,3.6,0.584,0.648,4.0.3a,frames/nossob/20261018/010959_p11_blob0378_f0.59.jpg
+2026-10-18 05:49:11,2026-10-18 07:49:11,nossob,day,505,hits,69,0.4924,1,0.3,,,,33,1.4,1.5,0.675,0.349,4.0.3a,hits/nossob/20261018/054911_p505_blob69.jpg
+2026-10-18 05:50:01,2026-10-18 07:50:01,nossob,day,443,frames,658,0.7923,1,0.3,,,,32,2.8,3.4,0.933,0.271,4.0.3a,frames/nossob/20261018/055001_p443_blob0658_f0.32.jpg
