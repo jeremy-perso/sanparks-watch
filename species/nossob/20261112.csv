@@ -1,0 +1,2 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-11-12 16:27:56,2026-11-12 18:27:56,nossob,night,661,frames,782,0.7407,1,0.15,,,,42,2.0,3.1,0.622,0.246,4.0.3a,frames/nossob/20261112/162756_p661_blob0782_f0.41.jpg
