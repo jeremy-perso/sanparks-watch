@@ -1,0 +1,2 @@
+utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
+2026-11-14 03:10:55,2026-11-14 05:10:55,satara,night,404,frames,671,0.0614,0,0.15,,,,5,2.0,1.3,0.749,0.502,4.0.3a,frames/satara/20261114/031055_p404_blob0671_f0.43.jpg
