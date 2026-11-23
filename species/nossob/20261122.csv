@@ -1,2 +1,6 @@
 utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
 2026-11-22 01:24:00,2026-11-22 03:24:00,nossob,night,15,frames,405,0.0163,0,0.15,,,,2,30.6,14.0,0.772,0.351,4.0.3a,frames/nossob/20261122/012400_p15_blob0405_f0.45.jpg
+2026-11-22 22:09:58,2026-11-23 00:09:58,nossob,night,196,hits,5,0.0794,0,0.15,,,,9,2.9,0.9,0.538,0.565,4.0.3a,hits/nossob/20261122/220958_p196_blob5.jpg
+2026-11-22 22:11:56,2026-11-23 00:11:56,nossob,night,15,hits,22,0.9049,1,0.15,,,,3,7.6,7.9,0.527,0.074,4.0.3a,hits/nossob/20261122/221156_p15_blob22.jpg
+2026-11-22 22:12:07,2026-11-23 00:12:07,nossob,night,15,hits,5,0.8982,1,0.15,,,,3,4.4,9.3,0.47,0.125,4.0.3a,hits/nossob/20261122/221207_p15_blob5.jpg
+2026-11-22 22:14:52,2026-11-23 00:14:52,nossob,night,15,hits,49,0.9446,1,0.15,,,,2,10.8,15.0,0.268,0.157,4.0.3a,hits/nossob/20261122/221452_p15_blob49.jpg
