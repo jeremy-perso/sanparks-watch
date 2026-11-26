@@ -1,2 +1,8 @@
 utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
 2026-11-25 02:42:13,2026-11-25 04:42:13,talamati,night,4561,frames,1026,0.0,0,0.15,,,,0,,,,,4.0.3a,frames/talamati/20261125/024213_p4561_blob1026_f0.32.jpg
+2026-11-25 11:50:00,2026-11-25 13:50:00,talamati,day,5030,frames,841,0.1403,0,0.3,,,,4,1.8,1.5,0.336,0.443,4.0.3a,frames/talamati/20261125/115000_p5030_blob0841_f0.31.jpg
+2026-11-25 11:51:00,2026-11-25 13:51:00,talamati,day,4960,hits,131,0.0866,0,0.3,,,,4,1.9,1.5,0.597,0.396,4.0.3a,hits/talamati/20261125/115100_p4960_blob131.jpg
+2026-11-25 11:51:12,2026-11-25 13:51:12,talamati,day,4960,hits,143,0.0515,0,0.3,,,,3,1.0,1.0,0.593,0.394,4.0.3a,hits/talamati/20261125/115112_p4960_blob143.jpg
+2026-11-25 11:53:15,2026-11-25 13:53:15,talamati,day,4948,hits,77,0.0331,0,0.3,,,,3,3.0,1.9,0.546,0.632,4.0.3a,hits/talamati/20261125/115315_p4948_blob77.jpg
+2026-11-25 11:53:51,2026-11-25 13:53:51,talamati,day,5034,hits,122,0.1851,0,0.3,,,,8,1.5,1.2,0.803,0.325,4.0.3a,hits/talamati/20261125/115351_p5034_blob122.jpg
+2026-11-25 11:54:53,2026-11-25 13:54:53,talamati,day,5030,hits,224,0.563,1,0.3,,,,5,1.7,1.4,0.781,0.383,4.0.3a,hits/talamati/20261125/115453_p5030_blob224.jpg

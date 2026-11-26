@@ -1,2 +1,12 @@
 utc,sast,cam,mode,preset,source,logged_blob,md_animal_conf,keep,keep_conf,prediction_common,prediction_class,prediction_score,n_detections,md_bw_blocks,md_bh_blocks,md_cx,md_cy,model_version,path
 2026-11-25 02:46:50,2026-11-25 04:46:50,satara,night,407,frames,1850,0.0,0,0.15,,,,0,,,,,4.0.3a,frames/satara/20261125/024650_p407_blob1850_f0.36.jpg
+2026-11-25 11:47:04,2026-11-25 13:47:04,satara,day,407,hits,679,0.0,0,0.3,,,,0,,,,,4.0.3a,hits/satara/20261125/114704_p407_blob679.jpg
+2026-11-25 11:49:08,2026-11-25 13:49:08,satara,day,417,hits,740,0.0,0,0.3,,,,0,,,,,4.0.3a,hits/satara/20261125/114908_p417_blob740.jpg
+2026-11-25 11:49:57,2026-11-25 13:49:57,satara,day,407,hits,390,0.0,0,0.3,,,,0,,,,,4.0.3a,hits/satara/20261125/114957_p407_blob390.jpg
+2026-11-25 11:50:09,2026-11-25 13:50:09,satara,day,407,hits,119,0.0,0,0.3,,,,0,,,,,4.0.3a,hits/satara/20261125/115009_p407_blob119.jpg
+2026-11-25 11:50:59,2026-11-25 13:50:59,satara,day,410,frames,3396,0.0935,0,0.3,,,,6,2.1,1.6,0.045,0.606,4.0.3a,frames/satara/20261125/115059_p410_blob3396_f0.66.jpg
+2026-11-25 11:51:59,2026-11-25 13:51:59,satara,day,417,hits,212,0.0,0,0.3,,,,0,,,,,4.0.3a,hits/satara/20261125/115159_p417_blob212.jpg
+2026-11-25 11:52:48,2026-11-25 13:52:48,satara,day,407,hits,90,0.0,0,0.3,,,,0,,,,,4.0.3a,hits/satara/20261125/115248_p407_blob90.jpg
+2026-11-25 11:53:49,2026-11-25 13:53:49,satara,day,410,hits,385,0.0268,0,0.3,,,,2,2.0,1.5,0.046,0.607,4.0.3a,hits/satara/20261125/115349_p410_blob385.jpg
+2026-11-25 11:54:13,2026-11-25 13:54:13,satara,day,429,hits,228,0.0,0,0.3,,,,0,,,,,4.0.3a,hits/satara/20261125/115413_p429_blob228.jpg
+2026-11-25 11:57:14,2026-11-25 13:57:14,satara,day,429,hits,105,0.0,0,0.3,,,,0,,,,,4.0.3a,hits/satara/20261125/115714_p429_blob105.jpg
